@@ -1,4 +1,4 @@
-# **DIP392-group_name**  
+# **DIP392-TrackFlow**  
 
 ## 📌 Project Overview  
 This project is a **production tracking system** designed to improve workflow visibility and efficiency. It allows real-time monitoring of the production process by tracking:  
