@@ -12,7 +12,7 @@ The system helps streamline production by providing a clear overview of progress
 
 ## 🛠 Tech Stack
 - **Frontend**: React + Vite
-- **Backend**: Node.js + Express
+- **Backend**: Node.js + Express.js
 - **Database**: PostgreSQL
 
 More details will be added as the project progresses.
