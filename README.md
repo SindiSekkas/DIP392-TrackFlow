@@ -10,6 +10,13 @@ This project is a **production tracking system** designed to improve workflow vi
 
 The system helps streamline production by providing a clear overview of progress, responsibilities, and deadlines, ensuring that all stages are efficiently managed.  
 
+## 🛠 Tech Stack
+- **Frontend**: React + Vite
+- **Backend**: Node.js + Express
+- **Database**: PostgreSQL
+
+More details will be added as the project progresses.
+
 ## 👥 Team Members  
 - **Robertas Gaigalas**  
 - **Oleksii Zakharov**  
@@ -19,4 +26,5 @@ The system helps streamline production by providing a clear overview of progress
 - **Veronika Stasiuk**  
 - **Oleksandr Tokarchuk**  
 
-More details will be added as the project progresses.
+
+
