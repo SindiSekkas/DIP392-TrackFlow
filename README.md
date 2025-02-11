@@ -14,8 +14,9 @@ The system helps streamline production by providing a clear overview of progress
 - **Frontend**: React + Vite
 - **Backend**: Node.js + Express.js
 - **Database**: PostgreSQL
+- **Mobile App**: Java (Android Studio)
 
-More details will be added as the project progresses.
+Above mentioned methods are just initial and more details/changes will be added as the project progresses.
 
 ## 👥 Team Members  
 - **Robertas Gaigalas**  
