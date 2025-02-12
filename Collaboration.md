@@ -43,6 +43,15 @@
    - Click "Commit"
    - Click "Push origin"
    - Click "Create Pull Request"
+
+### 4. Review Process
+1. Project lead will review your PR
+2. If changes needed:
+   - Make requested changes
+   - Commit and push again
+3. After approval:
+   - Project lead will merge changes
+   - You can delete your branch
   
 ## Project Structure
 ```
