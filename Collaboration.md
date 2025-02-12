@@ -20,8 +20,8 @@
    
 ### 3. Project Setup
 1. Open terminal in project folder
-2. Run npm install
-3. Run npm run dev
+2. Run `npm install`
+3. Run `npm run dev`
 
 ## Creating Components
 
@@ -32,7 +32,7 @@
    - Create new branch: `component/your-component-name`
 
 ### 2. Development
-1. Create your component in src/WebPage/components
+1. Create your component in `src/Main/components`
 2. Test your component
 3. Make sure it works
 
