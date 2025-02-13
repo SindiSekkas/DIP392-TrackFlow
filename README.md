@@ -10,6 +10,9 @@ This project is a **production tracking system** designed to improve workflow vi
 
 The system helps streamline production by providing a clear overview of progress, responsibilities, and deadlines, ensuring that all stages are efficiently managed.  
 
+## 📋 Development
+Check our [Component Development Guide](Collaboration.md) to start contributing
+
 ## 🛠 Tech Stack
 - **Frontend**: React + Vite
 - **Backend**: Node.js + Express.js
