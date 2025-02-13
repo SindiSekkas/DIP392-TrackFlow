@@ -1,0 +1,109 @@
+-- Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- Table for worker types
+CREATE TABLE worker_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type_name TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Main users table with enhanced security
+CREATE TABLE auth_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    last_login TIMESTAMP WITH TIME ZONE,
+    failed_login_attempts INTEGER DEFAULT 0,
+    account_locked BOOLEAN DEFAULT FALSE,
+    password_changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT email_check CHECK (email ~* '^[A-Za-z0-9._+%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')
+);
+
+-- Profiles table with additional validation
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth_user_id UUID REFERENCES auth_users(id) ON DELETE CASCADE,
+    full_name TEXT NOT NULL CHECK (char_length(full_name) >= 2),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'worker')),
+    worker_type_id UUID REFERENCES worker_types(id),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_worker_type CHECK (
+        (role = 'worker' AND worker_type_id IS NOT NULL) OR
+        (role != 'worker' AND worker_type_id IS NULL)
+    )
+);
+
+-- Enhanced sessions table with additional information
+CREATE TABLE auth_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth_user_id UUID REFERENCES auth_users(id) ON DELETE CASCADE,
+    token TEXT UNIQUE NOT NULL,
+    ip_address INET,
+    user_agent TEXT,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for security audit logs
+CREATE TABLE security_audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth_user_id UUID REFERENCES auth_users(id) ON DELETE SET NULL,
+    event_type TEXT NOT NULL,
+    ip_address INET,
+    user_agent TEXT,
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Default worker types
+INSERT INTO worker_types (type_name) VALUES 
+    ('engineer'),
+    ('welder'),
+    ('assembler'),
+    ('painter'),
+    ('logistics');
+
+-- Security functions
+
+-- Function to hash a password
+CREATE OR REPLACE FUNCTION hash_password(password TEXT) 
+RETURNS TEXT AS $$
+BEGIN
+    RETURN crypt(password, gen_salt('bf', 10));
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to verify a password
+CREATE OR REPLACE FUNCTION verify_password(password TEXT, hashed_password TEXT) 
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN hashed_password = crypt(password, hashed_password);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger function to update updated_at
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger to tables
+CREATE TRIGGER update_auth_users_updated_at
+    BEFORE UPDATE ON auth_users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_user_profiles_updated_at
+    BEFORE UPDATE ON user_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
