@@ -19,9 +19,28 @@
 5. Click "Clone"
    
 ### 3. Project Setup
-1. Open terminal in project folder
-2. Run `npm install`
-3. Run `npm run dev`
+1. Open terminal in project folder:
+   - If using VS Code:
+     - Open terminal (View → Terminal)
+     - Select Command Prompt (not PowerShell) using the dropdown next to the + button
+   - Or use Windows Command Prompt (cmd)
+2. Navigate to project directory:
+   ```bash
+   cd src/Main
+   ```
+3. Install dependencies (required after cloning):
+   ```bash
+   npm install
+   ```
+4. Run development server:
+   ```bash
+   npm run dev
+   ```
+
+Note: If you get "'vite' is not recognized" error, make sure you:
+- Used Command Prompt (not PowerShell)
+- Ran `npm install` first
+- Are in the correct directory (src/Main)
 
 ## Creating Components
 
