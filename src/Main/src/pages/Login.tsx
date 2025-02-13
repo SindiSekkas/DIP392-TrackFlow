@@ -1,7 +1,10 @@
 // src/pages/Login.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { handleError } from '../utils/errorHandling';
+import { sanitizeText, sanitizeEmail, validateInput } from '../utils/sanitization';
+import { csrfMiddleware } from '../utils/csrfProtection';
 
 export function LoginPage() {
     const [email, setEmail] = useState('');
@@ -10,14 +13,36 @@ export function LoginPage() {
     const navigate = useNavigate();
     const { signIn, loading } = useAuth();
 
+    // Setup CSRF protection
+    useEffect(() => {
+        csrfMiddleware.setupCSRF();
+    }, []);
+
+    const validateForm = (): boolean => {
+        if (!validateInput(email, 'email')) {
+            setError('Please enter a valid email address');
+            return false;
+        }
+        if (password.length < 8) {
+            setError('Password must be at least 8 characters long');
+            return false;
+        }
+        return true;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            setError('');
-            await signIn(email, password);
+            if (!validateForm()) return;
+
+            const sanitizedEmail = sanitizeEmail(email);
+            const sanitizedPassword = sanitizeText(password);
+            
+            await signIn(sanitizedEmail, sanitizedPassword);
             navigate('/dashboard');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to sign in');
+            const errorResponse = handleError(err);
+            setError(errorResponse.message);
         }
     };
 

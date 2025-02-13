@@ -2,6 +2,8 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { AppError } from '../utils/errorHandling';
+import { logError } from '../utils/errorHandling';
 
 interface AuthContextType {
     session: Session | null;
@@ -24,6 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+        }).catch(error => {
+            logError(error, { context: 'Initial session load' });
+            setLoading(false);
         });
 
         // Listening for changes of auth
@@ -36,19 +41,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const signIn = async (email: string, password: string) => {
-        const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password
-        });
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-        if (error) {
+            if (error) {
+                throw new AppError('AUTH', error.message, error.status?.toString());
+            }
+        } catch (error) {
+            logError(error, { context: 'Sign in', email });
             throw error;
         }
     };
 
     const signOut = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
+        try {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                throw new AppError('AUTH', error.message, error.status?.toString());
+            }
+        } catch (error) {
+            logError(error, { context: 'Sign out' });
             throw error;
         }
     };
