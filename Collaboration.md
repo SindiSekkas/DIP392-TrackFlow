@@ -75,13 +75,30 @@ Note: If you get "'vite' is not recognized" error, make sure you:
 ## Project Structure
 ```
 project_root/
-  ├── project_docs/      # Project documents
+  ├── project_docs/      # Project documentation
   ├── src/
-  │   └── Main/      # Main website directory
-  │       ├── components/  # Your components go here
-  │       ├── pages/      # Page components
-  │       └── shared/     # Shared utilities
-  └── README.md
+  │   └── Main/         # Main application directory
+  │       ├── node_modules/  # Dependencies
+  │       ├── public/        # Static files
+  │       ├── src/          # Source code
+  │       │   ├── assets/     # Images, fonts, etc.
+  │       │   ├── components/ # React components
+  │       │   ├── contexts/   # React contexts
+  │       │   ├── lib/        # Third-party integrations
+  │       │   ├── pages/      # Page components
+  │       │   ├── shared/     # Shared utilities
+  │       │   ├── utils/      # Utility functions
+  │       │   ├── App.css
+  │       │   ├── App.tsx     # Root component
+  │       │   ├── index.css   # Global styles
+  │       │   └── main.tsx    # Entry point
+  │       ├── .env           # Environment variables
+  │       ├── .gitignore     # Git ignore rules
+  │       ├── index.html     # HTML template
+  │       ├── package.json   # Dependencies and scripts
+  │       ├── tsconfig.json  # TypeScript config
+  │       └── vite.config.ts # Vite config
+  └── README.md          # Project overview
 ```
 It may change during the workflow
 
