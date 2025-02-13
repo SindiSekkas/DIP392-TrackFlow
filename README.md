@@ -14,10 +14,13 @@ The system helps streamline production by providing a clear overview of progress
 Check our [Component Development Guide](Collaboration.md) to start contributing
 
 ## 🛠 Tech Stack
-- **Frontend**: React + Vite
-- **Backend**: Node.js + Express.js
-- **Database**: PostgreSQL
-- **Mobile App**: Java (Android Studio)
+### Current:
+* **Frontend**: React + Vite + TypeScript
+* **Authentication & Database**: Supabase (PostgreSQL based)
+* **Styling**: Tailwind CSS
+
+### Planned:
+* **Mobile**: Java (Android Studio)
 
 Above mentioned methods are just initial and more details/changes will be added as the project progresses.
 
