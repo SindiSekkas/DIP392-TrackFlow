@@ -14,7 +14,7 @@
 ### 2. Access the Project
 1. Open GitHub Desktop
 2. Click "File" → "Clone Repository"
-3. Find and select our repository
+3. Find and select our repository `DIP392-TrackFlow`
 4. Choose where to save it on your computer
 5. Click "Clone"
    
@@ -23,7 +23,8 @@
    - If using VS Code:
      - Open terminal (View → Terminal)
      - Select Command Prompt (not PowerShell) using the dropdown next to the + button
-   - Or use Windows Command Prompt (cmd)
+      ![image](https://github.com/user-attachments/assets/8e1c5541-f55d-4253-920e-0b68653f648b)
+     - Or use Windows Command Prompt (cmd)
 2. Navigate to project directory:
    ```bash
    cd src/Main
