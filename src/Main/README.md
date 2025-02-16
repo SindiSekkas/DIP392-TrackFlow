@@ -52,9 +52,9 @@ Note: If you get "'vite' is not recognized" error, make sure you:
    - Create new branch: `component/your-component-name`
 
 ### 2. Development
-1. Create your component in `src/Main/components`
+1. Create your component
 2. Test your component
-3. Make sure it works
+3. Make sure it works :)
 
 ### 3. Submit Changes
 1. In GitHub Desktop:
