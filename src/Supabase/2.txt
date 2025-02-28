@@ -1,0 +1,98 @@
+-- 1. Enable required extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 2. Create table for worker types (if not exists)
+CREATE TABLE IF NOT EXISTS public.worker_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type_name TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default worker types
+INSERT INTO public.worker_types (type_name)
+VALUES ('engineer'), ('welder'), ('assembler'), ('painter'), ('logistics')
+ON CONFLICT (type_name) DO NOTHING;
+
+-- 3. (Optional) Drop and create user profiles table
+DROP TABLE IF EXISTS public.user_profiles CASCADE;
+
+CREATE TABLE public.user_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    auth_user_id UUID NOT NULL UNIQUE,
+    full_name TEXT NOT NULL CHECK (char_length(full_name) >= 2),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'worker')),
+    worker_type_id UUID REFERENCES public.worker_types(id),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT valid_worker_type CHECK (
+        (role = 'worker' AND worker_type_id IS NOT NULL) OR
+        (role <> 'worker' AND worker_type_id IS NULL)
+    )
+);
+
+-- 4. Update the foreign key to reference auth.users
+ALTER TABLE public.user_profiles
+DROP CONSTRAINT IF EXISTS user_profiles_auth_user_id_fkey;
+
+ALTER TABLE public.user_profiles
+ADD CONSTRAINT user_profiles_auth_user_id_fkey
+FOREIGN KEY (auth_user_id)
+REFERENCES auth.users (id)
+ON DELETE CASCADE;
+
+-- 5. Create trigger function for automatically creating a profile when a user is added to auth.users
+CREATE OR REPLACE FUNCTION public.handle_new_user() 
+RETURNS TRIGGER AS $$
+DECLARE
+  wtype_id UUID;
+  user_role TEXT;
+BEGIN
+  -- Determine the role: if not specified, default to "worker"
+  user_role := COALESCE(NEW.raw_user_meta_data->>'role', 'worker');
+  
+  IF user_role = 'worker' THEN
+    -- If worker_type is not provided, assign the default type "engineer"
+    IF NEW.raw_user_meta_data->>'worker_type' IS NULL THEN
+      SELECT id INTO wtype_id FROM public.worker_types WHERE type_name = 'engineer' LIMIT 1;
+    ELSE
+      SELECT id INTO wtype_id FROM public.worker_types WHERE type_name = NEW.raw_user_meta_data->>'worker_type' LIMIT 1;
+    END IF;
+  ELSE
+    wtype_id := NULL;
+  END IF;
+  
+  INSERT INTO public.user_profiles (auth_user_id, full_name, role, worker_type_id)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', 'New User'),
+    user_role,
+    wtype_id
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 6. Drop the old trigger (if exists) and create a new one on auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 7. (Optional) Create trigger to automatically update the updated_at field in profiles
+CREATE OR REPLACE FUNCTION public.update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON public.user_profiles;
+
+CREATE TRIGGER update_user_profiles_updated_at
+BEFORE UPDATE ON public.user_profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.update_updated_at();
