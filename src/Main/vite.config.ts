@@ -1,6 +1,7 @@
 // vite.config.ts
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwind from '@tailwindcss/vite'
 import { fileURLToPath } from 'url'
 
 // Utility function to generate security headers
@@ -31,9 +32,9 @@ const generateSecurityHeaders = (isDev: boolean) => ({
 export default defineConfig(({ mode }) => {
   loadEnv(mode, process.cwd(), '') // Load env files
   const isDev = mode === 'development'
-
+  
   return {
-    plugins: [react()],
+    plugins: [react(), tailwind()],
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url))
