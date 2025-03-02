@@ -16,7 +16,9 @@ Check our [Component Development Guide](Collaboration.md) to start contributing
 ## 🛠 Tech Stack
 ### Current:
 * **Frontend**: React + Vite + TypeScript
+* **Backend**: Node.js + Express.js
 * **Authentication & Database**: Supabase (PostgreSQL based)
+* **Security**: Supabase Auth with JWT, Express Validator, Helmet
 * **Styling**: Tailwind CSS
 
 ### Planned:
