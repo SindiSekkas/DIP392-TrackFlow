@@ -26,6 +26,7 @@
       ![image](https://github.com/user-attachments/assets/8e1c5541-f55d-4253-920e-0b68653f648b)
      - Or use Windows Command Prompt (cmd)
 2. Navigate to project directories and install dependencies:
+   
 **For Backend:**
    ```bash
    cd src/Web_part/Backend
