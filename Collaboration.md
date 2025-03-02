@@ -49,7 +49,7 @@ Backend API will be available at: http://localhost:3001/api
 Note: If you get "'vite' is not recognized" error, make sure you:
 - Used Command Prompt (not PowerShell)
 - Ran `npm install` first
-- Are in the correct directory (src/Main)
+- Are in the correct directory (src/Web_part)
 
 ## Creating Components
 
