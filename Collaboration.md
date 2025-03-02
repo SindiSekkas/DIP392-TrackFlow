@@ -139,3 +139,4 @@ It may change during the workflow
    - Test thoroughly before submitting
    - Ask questions if something is unclear
    - Wait for review and approval
+   - Keep backend and frontend logic cleanly separated
