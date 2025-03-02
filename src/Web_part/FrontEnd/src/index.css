@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Fix text color to be dark for better visibility */
+  color: #213547;
+  background-color: #ffffff;
+
+  /* Button interaction variables */
+  --button-hover-bg: #bfdbfe;
+  --button-active-bg: #93c5fd;
+  --button-hover-transform: translateY(-2px);
+  --button-active-transform: translateY(0px);
+  --button-hover-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --button-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --button-transition: all 0.15s ease;
+
+  /* Improved animation properties */
+  --animation-timing: 0.4s;
+  --animation-easing: cubic-bezier(0.16, 1, 0.3, 1); /* Improved easing function */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Keep links styling */
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+/* Make all buttons have consistent behavior */
+button {
+  transition: var(--button-transition);
+}
+
+button:hover:not(:disabled) {
+  transform: var(--button-hover-transform);
+  box-shadow: var(--button-hover-shadow);
+}
+
+button:active:not(:disabled) {
+  transform: var(--button-active-transform);
+  box-shadow: var(--button-active-shadow);
+}
+
+/* Specific styling for non-Tailwind buttons */
+button:not([class*="bg-"]):not([class*="text-"]) {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #f9f9f9;
+  color: #213547;
+  cursor: pointer;
+}
+
+button:not([class*="bg-"]):not([class*="text-"]):hover:not(:disabled) {
+  border-color: #646cff;
+  background-color: var(--button-hover-bg);
+}
+
+button:not([class*="bg-"]):not([class*="text-"]):active:not(:disabled) {
+  background-color: var(--button-active-bg);
+}
+
+button:focus:not([class*="focus\\:"]),
+button:focus-visible:not([class*="focus\\:"]) {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Apply hover effect to buttons with blue background */
+.bg-blue-600:hover {
+  background-color: #2563eb !important;
+}
+
+/* Replace the current keyframes with these smoother versions */
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+  20% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+}
+
+/* Update the animation utility classes */
+.animate-slide-down {
+  animation: slideDown var(--animation-timing) var(--animation-easing) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp var(--animation-timing) var(--animation-easing) forwards;
+}
+
+/* Remove outline from all interactive elements */
+:focus {
+  outline: none !important;
+}
+
+/* Add accessibility-friendly focus styles */
+button:focus-visible, 
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4);
+}
+
+/* Specifically target menu buttons in Layout component */
+button.w-full.text-left {
+  outline: none !important;
+}
+
+/* Override any other default focus styles */
+*:focus {
+  outline: none !important;
+}
+
