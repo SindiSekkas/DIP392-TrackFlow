@@ -25,6 +25,7 @@
      - Select Command Prompt (not PowerShell) using the dropdown next to the + button
       ![image](https://github.com/user-attachments/assets/8e1c5541-f55d-4253-920e-0b68653f648b)
      - Or use Windows Command Prompt (cmd)
+      
 2. Navigate to project directories and install dependencies:
    
 **For Backend:**
@@ -37,6 +38,7 @@
    cd src/Web_part/Frontend
    npm install
    ```
+
 3. Run development server:
    ```bash
    cd src/Web_part
