@@ -1,15 +1,15 @@
 // src/App.tsx
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/Login';
 import Dashboard from './components/Dashboard';
 import Layout from './components/Layout';
 import UserManagementPage from './pages/UserManagement';
-import NotFoundPage from './pages/404';
-import ForbiddenPage from './pages/403';
-import ServerErrorPage from './pages/500';
-import UnauthorizedPage from './pages/401';
+import NotFoundPage from './pages/Errors/404';
+import ForbiddenPage from './pages/Errors/403';
+import ServerErrorPage from './pages/Errors/500';
+import { useAuth } from './contexts/AuthContext';
 
 // Placeholder for future components - replace with actual components when created
 const ProjectsComponent = () => <div className="p-4">Projects Component</div>;
@@ -19,91 +19,99 @@ const ReportsComponent = () => <div className="p-4">Reports Component</div>;
 const SettingsComponent = () => <div className="p-4">Settings Component</div>;
 const HelpComponent = () => <div className="p-4">Help Component</div>;
 
+// Root level authentication checker component
+const AuthChecker = () => {
+  const { user, loading } = useAuth();
+  
+  // Show loading while checking authentication
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+  
+  // If not authenticated, always redirect to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // If authenticated, render the child routes
+  return <Outlet />;
+};
+
 function App() {
     return (
         <Router>
             <AuthProvider>
                 <Routes>
+                    {/* Public routes - accessible without authentication */}
                     <Route path="/login" element={<LoginPage />} />
                     
-                    {/* Protected dashboard routes */}
-                    <Route path="/dashboard" element={
-                        <ProtectedRoute>
-                            <Dashboard />
-                        </ProtectedRoute>
-                    } />
-                    
-                    {/* Additional routes for dashboard components */}
-                    <Route path="/dashboard/projects" element={
-                        <ProtectedRoute>
+                    {/* All other routes require authentication */}
+                    <Route element={<AuthChecker />}>
+                        {/* Dashboard and dashboard related routes */}
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        
+                        <Route path="/dashboard/projects" element={
                             <Layout>
                                 <ProjectsComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/dashboard/team" element={
-                        <ProtectedRoute>
+                        } />
+                        
+                        <Route path="/dashboard/team" element={
                             <Layout>
                                 <TeamComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/dashboard/calendar" element={
-                        <ProtectedRoute>
+                        } />
+                        
+                        <Route path="/dashboard/calendar" element={
                             <Layout>
                                 <CalendarComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/dashboard/reports" element={
-                        <ProtectedRoute>
+                        } />
+                        
+                        <Route path="/dashboard/reports" element={
                             <Layout>
                                 <ReportsComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/dashboard/settings" element={
-                        <ProtectedRoute>
+                        } />
+                        
+                        <Route path="/dashboard/settings" element={
                             <Layout>
                                 <SettingsComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
-                    
-                    <Route path="/dashboard/help" element={
-                        <ProtectedRoute>
+                        } />
+                        
+                        <Route path="/dashboard/help" element={
                             <Layout>
                                 <HelpComponent />
                             </Layout>
-                        </ProtectedRoute>
-                    } />
+                        } />
+                        
+                        {/* Role-protected routes */}
+                        <Route path="/dashboard/users" element={
+                            <ProtectedRoute requiredRole={['admin', 'manager']}>
+                                <UserManagementPage />
+                            </ProtectedRoute>
+                        } />
+                        
+                        <Route path="/admin" element={
+                            <ProtectedRoute requiredRole={['admin']}>
+                                <div>Admin Panel</div>
+                            </ProtectedRoute>
+                        } />
+                        
+                        {/* Error routes */}
+                        <Route path="/forbidden" element={<ForbiddenPage />} /> {/* 403 - User authenticated but lacks permission */}
+                        <Route path="/server-error" element={<ServerErrorPage />} /> {/* 500 - Server error */}
+                        
+                        {/* 404 route */}
+                        <Route path="*" element={<NotFoundPage />} />
+                    </Route>
                     
-                    {/* User Management route with role requirement */}
-                    <Route path="/dashboard/users" element={
-                        <ProtectedRoute requiredRole={['admin', 'manager']}>
-                            <UserManagementPage />
-                        </ProtectedRoute>
-                    } />
-                    
-                    {/* Admin route with role requirement */}
-                    <Route path="/admin" element={
-                        <ProtectedRoute requiredRole={['admin']}>
-                            <div>Admin Panel</div>
-                        </ProtectedRoute>
-                    } />
-                    
+                    {/* Root path redirect */}
                     <Route path="/" element={<Navigate to="/dashboard" />} />
-                    <Route path="/unauthorized" element={<div>Access Denied</div>} />
-                       {/* 404 route */}
-                       <Route path="*" element={
-                        <ProtectedRoute>
-                            <NotFoundPage />
-                        </ProtectedRoute>
-                    } />
+                    
+                    {/* Catch any other public route and redirect to login */}
+                    <Route path="*" element={<Navigate to="/login" />} />
                 </Routes>
             </AuthProvider>
         </Router>

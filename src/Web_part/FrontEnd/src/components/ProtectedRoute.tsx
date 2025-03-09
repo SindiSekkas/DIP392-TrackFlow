@@ -8,19 +8,14 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
-    const { user, loading } = useAuth();
+    const { user } = useAuth();
 
-    if (loading) {
-        return <div>Loading...</div>;
+    // If specific role is required and user doesn't have it
+    if (requiredRole && user?.user_metadata?.role && !requiredRole.includes(user.user_metadata.role)) {
+        // Redirect to 403 Forbidden page
+        return <Navigate to="/forbidden" />;
     }
 
-    if (!user) {
-        return <Navigate to="/login" />;
-    }
-
-    if (requiredRole && user.user_metadata.role && !requiredRole.includes(user.user_metadata.role)) {
-        return <Navigate to="/unauthorized" />;
-    }
-
-    return <>{children}</>;
+    // If role check passes, render the protected content
+    return <>{children}</>; 
 }
