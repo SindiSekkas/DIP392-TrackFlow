@@ -7,7 +7,9 @@ import Dashboard from './components/Dashboard';
 import Layout from './components/Layout';
 import UserManagementPage from './pages/UserManagement';
 import NotFoundPage from './pages/404';
-
+import ForbiddenPage from './pages/403';
+import ServerErrorPage from './pages/500';
+import UnauthorizedPage from './pages/401';
 
 // Placeholder for future components - replace with actual components when created
 const ProjectsComponent = () => <div className="p-4">Projects Component</div>;
@@ -96,7 +98,7 @@ function App() {
                     
                     <Route path="/" element={<Navigate to="/dashboard" />} />
                     <Route path="/unauthorized" element={<div>Access Denied</div>} />
-                       {/* 404 route for paths that don't match any defined routes */}
+                       {/* 404 route */}
                        <Route path="*" element={
                         <ProtectedRoute>
                             <NotFoundPage />
