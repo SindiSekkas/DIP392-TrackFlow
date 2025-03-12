@@ -35,7 +35,6 @@ The dashboard is your central hub for all TrackFlow activities:
 
 The Projects view allows you to manage all your team's projects in one place:
 
-![Projects View](/images/projects-view.png)
 
 - **Create New Project**: Start a new project with custom fields
 - **Filter & Sort**: Find projects by status, priority, or custom fields
