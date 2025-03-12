@@ -54,7 +54,6 @@ To create a new task in TrackFlow:
 5. Set priority, due date, and other fields as needed
 6. Click "Create Task" to save
 
-![Creating a New Task](/images/new-task-form.png)
 
 ### Task Statuses Explained
 
@@ -82,8 +81,6 @@ Invite your colleagues to collaborate:
 4. Select their role (Admin, Manager, or Worker)
 5. Click "Send Invitation"
 
-![Team Invitation Form](/images/invite-team.png)
-
 ### User Roles and Permissions
 
 TrackFlow has three primary user roles:
@@ -103,7 +100,6 @@ Yes! TrackFlow integrates with many popular tools:
 - **Development**: GitHub, GitLab, Bitbucket
 - **File Storage**: Google Drive, Dropbox, OneDrive
 
-![Available Integrations](/images/integrations.png)
 
 ### Setting up the GitHub Integration
 
@@ -160,13 +156,10 @@ const fetchTasks = async () => {
 };
 ```
 
-[View Full API Documentation →](/api-docs)
 
 ### Custom Fields
 
 You can extend TrackFlow with custom fields to track information specific to your workflow:
-
-![Custom Fields Configuration](/images/custom-fields.png)
 
 1. Go to "Project Settings > Custom Fields"
 2. Click "Add Custom Field"
