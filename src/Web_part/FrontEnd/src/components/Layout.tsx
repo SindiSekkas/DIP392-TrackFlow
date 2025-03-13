@@ -12,7 +12,8 @@ import {
   Bell,
   UserPlus
 } from 'lucide-react';
-import LogoImage from '/Logo/logo-transparent_notext_blue.png';
+// import LogoImage from '/Logo/logo-transparent_notext_blue.png';
+import LogoImage from '/FlowCat.webp';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -289,7 +290,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 src={LogoImage}
                 alt="TrackFlow Logo"
                 className="max-h-full max-w-full object-contain"
+                style = {{
+                  transform : 'scale(1.5)'
+                }}
               />
+            </div>
+            {/* TrackFlow title with FlowCat */}
+            <div className="relative">
+              <h1 className="font-medium" style={{ color: '#4B5563', fontSize: '1.6rem' }}>TrackFlow</h1>
             </div>
           </div>
 
@@ -324,26 +332,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </header>
 
       {/* Main content area with sidebar */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
         {/* Additional trigger area for sidebar that extends to the absolute edge */}
         <div 
           ref={sidebarTriggerRef}
-          className="absolute left-0 top-[70px] bottom-0 w-2 z-20"
+          className="absolute left-0 top-0 bottom-0 w-2 z-20"
           onMouseEnter={handleSidebarMouseEnter}
         />
 
-        {/* Sidebar - below the header */}
+        {/* Sidebar - positioned absolutely to overlap content when expanded */}
         <div
           ref={sidebarRef}
           onMouseEnter={handleSidebarMouseEnter}
           onMouseLeave={handleSidebarMouseLeave}
           className={`
+            absolute top-0 left-0 bottom-0
             ${sidebarExpanded ? 'w-64' : 'w-18'}
             bg-white border-r border-gray-200
             transition-all duration-300
-            relative
             flex flex-col h-full
             overflow-visible
+            z-10
           `}
         >
           {/* Navigation with dividers */}
@@ -507,8 +516,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* Main content container for children */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Main content container for children - always takes full width */}
+        <div className="flex-1 flex flex-col overflow-hidden pl-18">
           <main className="flex-1 overflow-auto bg-gray-50 p-6">
             {children}
           </main>
