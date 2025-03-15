@@ -12,7 +12,8 @@ import {
   Bell,
   UserPlus
 } from 'lucide-react';
-import LogoImage from '/FlowCat.webp';
+//import LogoImage from '/FlowCat.webp';
+import LogoImage from '/Logo/logo-transparent_notext_blue.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import SupportPanel from './SupportPanel';
@@ -245,36 +246,36 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     }
   };
 
-// Close profile menu and support panel if clicked outside
-useEffect(() => {
-  function handleClickOutside(event: MouseEvent) {
-    // Close profile menu if clicked outside of both profile menu AND support panel
-    if (
-      profileMenuRef.current &&
-      !profileMenuRef.current.contains(event.target as Node) &&
-      // Don't close profile menu if clicking in support panel
-      !(supportPanelRef.current && supportPanelRef.current.contains(event.target as Node))
-    ) {
-      setProfileMenuOpen(false);
+  // Close profile menu and support panel if clicked outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      // Close profile menu if clicked outside of both profile menu AND support panel
+      if (
+        profileMenuRef.current &&
+        !profileMenuRef.current.contains(event.target as Node) &&
+        // Don't close profile menu if clicking in support panel
+        !(supportPanelRef.current && supportPanelRef.current.contains(event.target as Node))
+      ) {
+        setProfileMenuOpen(false);
+      }
+      
+      // Close support panel if clicked outside and not on the Support button
+      if (
+        supportPanelOpen &&
+        supportPanelRef.current &&
+        !supportPanelRef.current.contains(event.target as Node) &&
+        supportButtonRef.current &&
+        !supportButtonRef.current.contains(event.target as Node)
+      ) {
+        setSupportPanelOpen(false);
+      }
     }
     
-    // Close support panel if clicked outside and not on the Support button
-    if (
-      supportPanelOpen &&
-      supportPanelRef.current &&
-      !supportPanelRef.current.contains(event.target as Node) &&
-      supportButtonRef.current &&
-      !supportButtonRef.current.contains(event.target as Node)
-    ) {
-      setSupportPanelOpen(false);
-    }
-  }
-  
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => {
-    document.removeEventListener('mousedown', handleClickOutside);
-  };
-}, [supportPanelOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [supportPanelOpen]);
 
   // Toggle profile menu
   const toggleProfileMenu = () => {
@@ -312,24 +313,35 @@ useEffect(() => {
         backgroundColor: 'var(--header-bg)',
         borderColor: 'var(--header-border)'
       }}>
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-2.5">
           {/* Left side: logo and title */}
           <div className="flex items-center space-x-3">
             {/* Logo */}
-            <div className="h-10 w-10 flex items-center justify-center flex-shrink-0 transform -translate-x-[3px]  ">
+            <div className="h-10 w-10 flex items-center justify-center flex-shrink-0">
               <img
                 src={LogoImage}
                 alt="TrackFlow Logo"
                 className="max-h-full max-w-full object-contain"
                 style={{
-                  transform: 'scale(1.5)'
+                  transform: 'translateX(3px)' // Move logo slightly to the right
                 }}
               />
             </div>
-            {/* TrackFlow title with FlowCat */}
+            {/* TrackFlow title with gradient */}
             <div className="relative">
-              <h1 className="font-medium" style={{ color: '#4B5563', fontSize: '1.6rem' }}>TrackFlow</h1>
-            </div>
+              <h1 className="font-bold" style={{ 
+                fontSize: '1.6rem', 
+                fontFamily: 'system-ui, sans-serif',
+                background: 'linear-gradient(90deg, #3B82F6 0%, #1E40AF 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                transform: 'translateY(-2px) translateX(3px)',
+
+              }}>
+                TrackFlow
+              </h1>
+            </div>             
           </div>
 
           {/* Right side: search and notifications */}
@@ -581,7 +593,7 @@ useEffect(() => {
             className="absolute z-50"
             style={{
               bottom: '105px',  // Position below the account section
-              left: '240px',      // Position to the right of the sidebar
+              left: '240px',    // Position to the right of the sidebar
             }}
           >
             <SupportPanel onClose={() => setSupportPanelOpen(false)} />
