@@ -10,9 +10,16 @@ import NotFoundPage from './pages/Errors/404';
 import ForbiddenPage from './pages/Errors/403';
 import ServerErrorPage from './pages/Errors/500';
 import { useAuth } from './contexts/AuthContext';
+import ProjectsPage from './pages/Projects/ProjectsPage';
+import ProjectDetailsPage from './pages/Projects/ProjectDetailsPage';
+import CreateProjectPage from './pages/Projects/CreateProjectPage';
+import EditProjectPage from './pages/Projects/EditProjectPage';
+import AssembliesPage from './pages/Assemblies/AssembliesPage';
+import AssemblyDetailsPage from './pages/Assemblies/AssemblyDetailsPage';
+import CreateAssemblyPage from './pages/Assemblies/CreateAssemblyPage';
+import EditAssemblyPage from './pages/Assemblies/EditAssemblyPage';
 
 // Placeholder for future components - replace with actual components when created
-const ProjectsComponent = () => <div className="p-4">Projects Component</div>;
 const TeamComponent = () => <div className="p-4">Team Component</div>;
 const CalendarComponent = () => <div className="p-4">Calendar Component</div>;
 const ReportsComponent = () => <div className="p-4">Reports Component</div>;
@@ -52,7 +59,49 @@ function App() {
                         
                         <Route path="/dashboard/projects" element={
                             <Layout>
-                                <ProjectsComponent />
+                                <ProjectsPage />
+                            </Layout>
+                        } />
+                        
+                        <Route path="/dashboard/projects/create" element={
+                            <Layout>
+                                <CreateProjectPage />
+                            </Layout>
+                        } />
+
+                        <Route path="/dashboard/projects/:id" element={
+                            <Layout>
+                                <ProjectDetailsPage />
+                            </Layout>
+                        } />
+
+                        <Route path="/dashboard/projects/:id/edit" element={
+                            <Layout>
+                                <EditProjectPage />
+                            </Layout>
+                        } />
+                        
+                        <Route path="/dashboard/assemblies" element={
+                            <Layout>
+                                <AssembliesPage />
+                            </Layout>
+                        } />
+
+                        <Route path="/dashboard/assemblies/create" element={
+                            <Layout>
+                                <CreateAssemblyPage />
+                            </Layout>
+                        } />
+
+                        <Route path="/dashboard/assemblies/:id" element={
+                            <Layout>
+                                <AssemblyDetailsPage />
+                            </Layout>
+                        } />
+
+                        <Route path="/dashboard/assemblies/:id/edit" element={
+                            <Layout>
+                                <EditAssemblyPage />
                             </Layout>
                         } />
                         

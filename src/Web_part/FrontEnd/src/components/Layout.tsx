@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Home,
-  Package,
   Users,
   Calendar,
   BarChart2,
@@ -10,7 +9,9 @@ import {
   BookOpen,
   Search,
   Bell,
-  UserPlus
+  UserPlus,
+  Layers,
+  Box
 } from 'lucide-react';
 //import LogoImage from '/FlowCat.webp';
 import LogoImage from '/Logo/logo-transparent_notext_blue.png';
@@ -328,16 +329,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </div>
             {/* TrackFlow title with gradient */}
-            <div className="relative">
+            <div className="relative" style={{ userSelect: 'none' }}>
               <h1 className="font-bold" style={{ 
                 fontSize: '1.6rem', 
                 fontFamily: 'system-ui, sans-serif',
-                background: 'linear-gradient(90deg, #3B82F6 0%, #1E40AF 100%)',
+                background: 'linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                transform: 'translateY(-2px) translateX(3px)',
-
+                transform: 'translateY(0px) translateX(3px)',
               }}>
                 TrackFlow
               </h1>
@@ -414,11 +414,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   setHoveredItem={setHoveredItem}
                 />
                 <NavItem
-                  icon={<Package size={24} />}
+                  icon={<Layers size={24} />}
                   label="Projects"
                   to="/dashboard/projects"
                   expanded={sidebarExpanded}
-                  id="package"
+                  id="projects"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<Box size={24} />}
+                  label="Assemblies"
+                  to="/dashboard/assemblies"
+                  expanded={sidebarExpanded}
+                  id="assemblies"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />

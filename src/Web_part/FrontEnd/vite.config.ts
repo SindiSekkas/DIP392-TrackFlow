@@ -42,10 +42,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 3000,
+      host: true, // Listen on all addresses, including network
       headers: generateSecurityHeaders(true)
     },
     preview: {
       port: 3000,
+      host: true, // Listen on all addresses, including network
       headers: generateSecurityHeaders(false)
     },
     build: {
