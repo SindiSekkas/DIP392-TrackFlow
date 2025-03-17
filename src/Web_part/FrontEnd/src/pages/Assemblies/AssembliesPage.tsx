@@ -15,7 +15,10 @@ import {
   Download
 } from 'lucide-react';
 import { Project, Assembly, projectsApi, assembliesApi } from '../../lib/projectsApi';
-import { formatDate, formatWeight } from '../../utils/formatters';
+import { formatDate, formatWeight, formatDimension } from '../../utils/formatters';
+import { ColumnPreference } from '../../lib/preferencesApi';
+import ColumnSettings from '../../components/ColumnSettings';
+import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 
 const AssembliesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,10 +30,30 @@ const AssembliesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   
+  // Column preferences from context
+  const { 
+    assemblyColumns,
+    saveAssemblyColumns 
+  } = useColumnSettings();
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  
   // Loading and error states
   const [projectsLoading, setProjectsLoading] = useState(true);
   const [assembliesLoading, setAssembliesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Save column preferences
+  const saveColumnPreferences = async (columns: ColumnPreference[]) => {
+    try {
+      await saveAssemblyColumns(columns);
+      setShowColumnSettings(false);
+    } catch (error) {
+      console.error('Error saving column preferences:', error);
+    }
+  };
+
+  // Get visible columns
+  const visibleColumns = assemblyColumns.filter(col => col.visible);
 
   // Fetch all projects on component mount
   useEffect(() => {
@@ -284,7 +307,26 @@ const AssembliesPage: React.FC = () => {
               <Download size={18} className="mr-2" />
               Export
             </button>
+            
+            <button
+              onClick={() => setShowColumnSettings(!showColumnSettings)}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              <Settings size={18} className="mr-2" />
+              Columns
+            </button>
           </div>
+          
+          {/* Column settings modal */}
+          {showColumnSettings && (
+            <div className="absolute right-4 top-28 z-10">
+              <ColumnSettings
+                columns={assemblyColumns}
+                onSave={saveColumnPreferences}
+                onCancel={() => setShowColumnSettings(false)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Assemblies table */}
@@ -331,12 +373,19 @@ const AssembliesPage: React.FC = () => {
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100 text-gray-700">
                 <tr>
+                  {/* Always include name as the first column */}
                   <th className="text-left p-3 font-medium">Name</th>
-                  <th className="text-left p-3 font-medium">Weight</th>
-                  <th className="text-left p-3 font-medium">Quantity</th>
-                  <th className="text-left p-3 font-medium">Status</th>
-                  <th className="text-left p-3 font-medium">Start Date</th>
-                  <th className="text-left p-3 font-medium">End Date</th>
+                  
+                  {/* Dynamic columns based on preferences */}
+                  {visibleColumns
+                    .filter(col => col.id !== 'name') // Name is already included
+                    .map(column => (
+                      <th key={column.id} className="text-left p-3 font-medium">
+                        {column.label}
+                      </th>
+                    ))}
+                  
+                  {/* Always include actions column */}
                   <th className="text-center p-3 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -344,31 +393,56 @@ const AssembliesPage: React.FC = () => {
                 {filteredAssemblies.map((assembly) => (
                   <tr key={assembly.id} className="hover:bg-gray-50">
                     <td className="p-3">{assembly.name}</td>
-                    <td className="p-3">{formatWeight(assembly.weight)}</td>
-                    <td className="p-3">{assembly.quantity}</td>
-                    <td className="p-3">
-                      <span
-                        className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          assembly.status === 'Waiting'
-                            ? 'bg-blue-100 text-blue-800'
-                            : assembly.status === 'In Production'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : assembly.status === 'Welding'
-                            ? 'bg-orange-100 text-orange-800'
-                            : assembly.status === 'Painting'
-                            ? 'bg-purple-100 text-purple-800'
-                            : 'bg-green-100 text-green-800'
-                        }`}
-                      >
-                        {assembly.status}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      {assembly.start_date ? formatDate(assembly.start_date as string) : '—'}
-                    </td>
-                    <td className="p-3">
-                      {assembly.end_date ? formatDate(assembly.end_date as string) : '—'}
-                    </td>
+                    
+                    {/* Dynamic columns based on preferences */}
+                    {visibleColumns
+                      .filter(col => col.id !== 'name') // Name is already included
+                      .map(column => {
+                        // Render different content based on column id
+                        switch (column.id) {
+                          case 'weight':
+                            return <td key={column.id} className="p-3">{formatWeight(assembly.weight)}</td>;
+                          case 'quantity':
+                            return <td key={column.id} className="p-3">{assembly.quantity}</td>;
+                          case 'status':
+                            return (
+                              <td key={column.id} className="p-3">
+                                <span
+                                  className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                    assembly.status === 'Waiting'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : assembly.status === 'In Production'
+                                      ? 'bg-yellow-100 text-yellow-800'
+                                      : assembly.status === 'Welding'
+                                      ? 'bg-orange-100 text-orange-800'
+                                      : assembly.status === 'Painting'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-green-100 text-green-800'
+                                  }`}
+                                >
+                                  {assembly.status}
+                                </span>
+                              </td>
+                            );
+                          case 'width':
+                            return <td key={column.id} className="p-3">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
+                          case 'height':
+                            return <td key={column.id} className="p-3">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
+                          case 'length':
+                            return <td key={column.id} className="p-3">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
+                          case 'painting_spec':
+                            return <td key={column.id} className="p-3">{assembly.painting_spec || '—'}</td>;
+                          case 'start_date':
+                            return <td key={column.id} className="p-3">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
+                          case 'end_date':
+                            return <td key={column.id} className="p-3">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
+                          case 'quality_control_status':
+                            return <td key={column.id} className="p-3">{assembly.quality_control_status || '—'}</td>;
+                          default:
+                            return <td key={column.id} className="p-3">—</td>;
+                        }
+                      })}
+                    
                     <td className="p-3">
                       <div className="flex justify-center space-x-2">
                         <button
