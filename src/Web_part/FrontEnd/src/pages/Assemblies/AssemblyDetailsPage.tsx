@@ -1,11 +1,10 @@
 // src/pages/Assemblies/AssemblyDetailsPage.tsx
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   Edit, 
   Trash2, 
   ArrowLeft, 
-  Calendar, 
   Package,
   FileText,
   Download,
@@ -20,10 +19,31 @@ import { supabase } from '../../lib/supabase';
 const AssemblyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [assembly, setAssembly] = useState<AssemblyWithProject | null>(null);
   const [drawing, setDrawing] = useState<AssemblyDrawing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Handle back navigation
+  const handleBackNavigation = () => {
+    const fromSource = location.state?.from;
+    
+    if (assembly?.project_id) {
+      // If we came from a project page, return to that project
+      if (fromSource === 'project') {
+        navigate(`/dashboard/projects/${assembly.project_id}`);
+      } else {
+        // If we came from assemblies page, save the current project ID
+        // in sessionStorage before navigating back to assemblies
+        sessionStorage.setItem('selectedProjectId', assembly.project_id);
+        navigate('/dashboard/assemblies');
+      }
+    } else {
+      // If there's no project ID, just go back to assemblies
+      navigate('/dashboard/assemblies');
+    }
+  };
 
   useEffect(() => {
     const fetchAssemblyData = async () => {
@@ -110,7 +130,7 @@ const AssemblyDetailsPage: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <button
-            onClick={() => navigate(assembly.project_id ? `/dashboard/projects/${assembly.project_id}` : '/dashboard/assemblies')}
+            onClick={handleBackNavigation}
             className="mr-4 p-2 hover:bg-gray-100 rounded-full"
             aria-label="Back"
           >

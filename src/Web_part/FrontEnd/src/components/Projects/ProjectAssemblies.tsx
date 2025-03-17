@@ -122,7 +122,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                   <td className="p-3">
                     <div className="flex justify-center space-x-2">
                       <button
-                        onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`)}
+                        onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'project' } })}
                         title="View"
                         className="p-1 rounded-full hover:bg-gray-200"
                       >
