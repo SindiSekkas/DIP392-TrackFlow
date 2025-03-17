@@ -27,6 +27,9 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
       name: '',
       weight: 0,
       quantity: 1,
+      width: null,
+      height: null,
+      length: null,
       painting_spec: '',
       status: 'Waiting',
       start_date: '',
@@ -359,6 +362,59 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
+          </div>
+
+          <div className="md:col-span-2">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Dimensions (mm)</h3>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Width
+                </label>
+                <input
+                  type="number"
+                  name="width"
+                  value={formData.width !== null ? formData.width : ''}
+                  onChange={handleChange}
+                  min="0.01"
+                  step="0.01"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  placeholder="Width"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Height
+                </label>
+                <input
+                  type="number"
+                  name="height"
+                  value={formData.height !== null ? formData.height : ''}
+                  onChange={handleChange}
+                  min="0.01"
+                  step="0.01"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  placeholder="Height"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">
+                  Length
+                </label>
+                <input
+                  type="number"
+                  name="length"
+                  value={formData.length !== null ? formData.length : ''}
+                  onChange={handleChange}
+                  min="0.01"
+                  step="0.01"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  placeholder="Length"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

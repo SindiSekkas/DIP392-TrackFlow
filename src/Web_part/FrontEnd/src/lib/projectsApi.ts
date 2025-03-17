@@ -27,6 +27,9 @@ export interface Assembly {
   name: string;
   weight: number;
   quantity: number;
+  width?: number | null;
+  height?: number | null;
+  length?: number | null;
   painting_spec?: string | null;
   status: 'Waiting' | 'In Production' | 'Welding' | 'Painting' | 'Completed';
   start_date?: string | Date | null;

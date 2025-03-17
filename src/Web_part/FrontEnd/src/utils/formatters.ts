@@ -37,3 +37,11 @@ export const formatDate = (dateString: string | Date): string => {
     
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   };
+
+/**
+ * Formats dimensions with units
+ */
+export const formatDimension = (value?: number): string => {
+  if (!value && value !== 0) return '—';
+  return `${value.toLocaleString()} mm`;
+};

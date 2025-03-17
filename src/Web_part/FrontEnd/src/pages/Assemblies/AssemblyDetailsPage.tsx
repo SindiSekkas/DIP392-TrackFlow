@@ -204,6 +204,32 @@ const AssemblyDetailsPage: React.FC = () => {
               {assembly.painting_spec && (
                 <p className="text-gray-700">Painting: {assembly.painting_spec}</p>
               )}
+              
+              {(assembly.width || assembly.height || assembly.length) && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Dimensions (mm)</p>
+                  <div className="grid grid-cols-3 gap-x-4 text-gray-700">
+                    {assembly.width && (
+                      <div>
+                        <span className="text-xs text-gray-500">Width</span>
+                        <p>{assembly.width.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {assembly.height && (
+                      <div>
+                        <span className="text-xs text-gray-500">Height</span>
+                        <p>{assembly.height.toLocaleString()}</p>
+                      </div>
+                    )}
+                    {assembly.length && (
+                      <div>
+                        <span className="text-xs text-gray-500">Length</span>
+                        <p>{assembly.length.toLocaleString()}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="mb-4 pb-4 border-b border-gray-200">
