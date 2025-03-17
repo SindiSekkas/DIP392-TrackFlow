@@ -3,13 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from 'react-
 import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/Login';
+import { useAuth } from './contexts/AuthContext';
 import Dashboard from './components/Dashboard';
 import Layout from './components/Layout';
 import UserManagementPage from './pages/UserManagement';
 import NotFoundPage from './pages/Errors/404';
 import ForbiddenPage from './pages/Errors/403';
 import ServerErrorPage from './pages/Errors/500';
-import { useAuth } from './contexts/AuthContext';
 import ProjectsPage from './pages/Projects/ProjectsPage';
 import ProjectDetailsPage from './pages/Projects/ProjectDetailsPage';
 import CreateProjectPage from './pages/Projects/CreateProjectPage';

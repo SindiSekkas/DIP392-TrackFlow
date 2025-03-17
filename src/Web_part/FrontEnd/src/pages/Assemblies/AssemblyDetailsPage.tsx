@@ -105,7 +105,7 @@ const AssemblyDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-white p-6 rounded-lg shadow-md overflow-auto max-h-[calc(100vh-160px)]">
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
@@ -157,158 +157,147 @@ const AssemblyDetailsPage: React.FC = () => {
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        {/* Left column - Assembly Details */}
         <div>
-          {/* Assembly Details */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-800 mb-4">Assembly Details</h3>
-            <div className="space-y-3">
-              {assembly.project && (
-                <div className="flex items-start">
-                  <Package className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">Project</p>
-                    <Link 
-                      to={`/dashboard/projects/${assembly.project_id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      {assembly.project.name} (#{assembly.project.internal_number})
-                    </Link>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex items-start">
-                <Package className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500">Specifications</p>
-                  <p className="text-gray-700">Weight: {formatWeight(assembly.weight)}</p>
-                  <p className="text-gray-700">Quantity: {assembly.quantity}</p>
-                  {assembly.painting_spec && (
-                    <p className="text-gray-700">Painting: {assembly.painting_spec}</p>
-                  )}
-                </div>
-              </div>
-              
-              {(assembly.start_date || assembly.end_date) && (
-                <div className="flex items-start">
-                  <Calendar className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">Timeline</p>
-                    {assembly.start_date && (
-                      <p className="text-gray-700">Start: {formatDate(assembly.start_date)}</p>
-                    )}
-                    {assembly.end_date && (
-                      <p className="text-gray-700">End: {formatDate(assembly.end_date)}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
+            <Package size={18} className="mr-2 text-gray-500" />
+            Assembly Specifications
+          </h3>
           
-          {/* Quality Control */}
-          {(assembly.quality_control_status || assembly.quality_control_notes) && (
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
-                <CheckCircle size={18} className="mr-2 text-gray-500" />
-                Quality Control
-              </h3>
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                {assembly.quality_control_status && (
-                  <div className="mb-2">
-                    <p className="text-sm text-gray-500">Status</p>
-                    <p className="text-gray-700">{assembly.quality_control_status}</p>
-                  </div>
-                )}
-                {assembly.quality_control_notes && (
-                  <div>
-                    <p className="text-sm text-gray-500">Notes</p>
-                    <p className="text-gray-700 whitespace-pre-line">{assembly.quality_control_notes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div>
-          {/* Drawing Section */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
-              <FileText size={18} className="mr-2 text-gray-500" />
-              Assembly Drawing
-            </h3>
-            
-            {drawing ? (
-              <div className="bg-gray-50 rounded border border-gray-200 p-4">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <p className="text-gray-700">{drawing.file_name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(drawing.file_size)}</p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <a
-                      href={getFileUrl(drawing.file_path)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                      title="View"
-                    >
-                      <Eye size={20} />
-                    </a>
-                    <a
-                      href={getFileUrl(drawing.file_path)}
-                      download={drawing.file_name}
-                      className="p-1.5 text-green-600 hover:bg-green-50 rounded"
-                      title="Download"
-                    >
-                      <Download size={20} />
-                    </a>
-                  </div>
-                </div>
-                
-                {/* PDF Viewer (iframe) */}
-                <div className="mt-3 border border-gray-300 rounded overflow-hidden">
-                  <iframe
-                    src={`${getFileUrl(drawing.file_path)}#toolbar=0`}
-                    width="100%"
-                    height="400"
-                    title="Assembly Drawing"
-                    className="block"
-                  ></iframe>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200">
-                <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
-                <Link
-                  to={`/dashboard/assemblies/${assembly.id}/edit`}
-                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          <div className="bg-gray-50 rounded border border-gray-200 p-4 h-[495px] overflow-auto"> {/* Matching height with PDF container */}
+            {assembly.project && (
+              <div className="mb-4 pb-4 border-b border-gray-200">
+                <p className="text-sm text-gray-500 mb-1">Project</p>
+                <Link 
+                  to={`/dashboard/projects/${assembly.project_id}`}
+                  className="text-blue-600 hover:underline"
                 >
-                  Upload Drawing
+                  {assembly.project.name} (#{assembly.project.internal_number})
                 </Link>
               </div>
             )}
-          </div>
-          
-          {/* Timestamp Information */}
-          <div className="mt-6 text-xs text-gray-500">
-            <div className="flex items-center justify-end gap-2">
-              <Clock size={14} />
-              <span>
-                {assembly.created_at && `Created: ${formatDate(assembly.created_at)}`}
-              </span>
-              {assembly.updated_at && assembly.updated_at !== assembly.created_at && (
-                <span className="ml-2">
-                  {`Updated: ${formatDate(assembly.updated_at)}`}
-                </span>
+            
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">Details</p>
+              <p className="text-gray-700 mb-1">Weight: {formatWeight(assembly.weight)}</p>
+              <p className="text-gray-700 mb-1">Quantity: {assembly.quantity}</p>
+              {assembly.painting_spec && (
+                <p className="text-gray-700">Painting: {assembly.painting_spec}</p>
               )}
             </div>
+            
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">Timeline</p>
+              {assembly.start_date && (
+                <p className="text-gray-700 mb-1">Start: {formatDate(assembly.start_date)}</p>
+              )}
+              {assembly.end_date && (
+                <p className="text-gray-700">End: {formatDate(assembly.end_date)}</p>
+              )}
+              {!assembly.start_date && !assembly.end_date && (
+                <p className="text-gray-400 italic">No timeline information available</p>
+              )}
+            </div>
+            
+            {/* Quality Control - Moved inside specs section */}
+            {(assembly.quality_control_status || assembly.quality_control_notes) && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2 flex items-center">
+                  <CheckCircle size={16} className="mr-2 text-gray-500" />
+                  Quality Control
+                </p>
+                {assembly.quality_control_status && (
+                  <p className="text-gray-700 mb-1">Status: {assembly.quality_control_status}</p>
+                )}
+                {assembly.quality_control_notes && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 mb-1">Notes</p>
+                    <div className="text-gray-700 whitespace-pre-line bg-white p-3 rounded border border-gray-200">
+                      {assembly.quality_control_notes}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Timestamp Information - at the bottom */}
+            <div className="text-xs text-gray-500 mt-4 pt-3 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <Clock size={14} />
+                <span>
+                  {assembly.created_at && `Created: ${formatDate(assembly.created_at)}`}
+                </span>
+                {assembly.updated_at && assembly.updated_at !== assembly.created_at && (
+                  <span className="ml-2">
+                    {`Updated: ${formatDate(assembly.updated_at)}`}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
+        </div>
+        
+        {/* Right column - Drawing */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
+            <FileText size={18} className="mr-2 text-gray-500" />
+            Assembly Drawing
+          </h3>
+          
+          {drawing ? (
+            <div className="bg-gray-50 rounded border border-gray-200 p-4">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <p className="text-gray-700">{drawing.file_name}</p>
+                  <p className="text-xs text-gray-500">{formatFileSize(drawing.file_size)}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <a
+                    href={getFileUrl(drawing.file_path)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded"
+                    title="View"
+                  >
+                    <Eye size={20} className="text-white" />
+                  </a>
+                  <a
+                    href={getFileUrl(drawing.file_path)}
+                    download={drawing.file_name}
+                    className="p-1.5 bg-blue-600 text-white hover:bg-blue-700 rounded"
+                    title="Download"
+                  >
+                    <Download size={20} className="text-white" />
+                  </a>
+                </div>
+              </div>
+              
+              {/* PDF Viewer with fixed height and scrollable content */}
+              <div className="mt-3 border border-gray-300 rounded overflow-hidden">
+                <iframe
+                  src={`${getFileUrl(drawing.file_path)}#toolbar=0`}
+                  width="100%"
+                  height="400"
+                  title="Assembly Drawing"
+                  className="block"
+                ></iframe>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 h-[495px] flex flex-col justify-center items-center"> {/* Matching height */}
+              <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
+              <Link
+                to={`/dashboard/assemblies/${assembly.id}/edit`}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <span className="text-white">Upload Drawing</span>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default AssemblyDetailsPage; 
+export default AssemblyDetailsPage;

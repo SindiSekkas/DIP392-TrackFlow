@@ -1,9 +1,12 @@
 // src/pages/Projects/ProjectsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Filter, Search, Download, Trash2, Edit, Eye } from 'lucide-react';
+import { Plus, Filter, Search, Download, Trash2, Edit, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { Project, projectsApi } from '../../lib/projectsApi';
 import { formatDate } from '../../utils/formatters';
+
+type SortColumn = 'internal_number' | 'name' | 'client' | 'project_start' | 'project_end' | 'status';
+type SortDirection = 'asc' | 'desc';
 
 const ProjectsPage: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -11,6 +14,8 @@ const ProjectsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [sortColumn, setSortColumn] = useState<SortColumn>('internal_number');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const navigate = useNavigate();
 
   // Loading projects
@@ -97,6 +102,42 @@ const ProjectsPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Sorting function
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // If already sorting by this column, toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Otherwise, sort by this column in ascending order
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sorted projects
+  const getSortedProjects = (): Project[] => {
+    return [...filteredProjects].sort((a, b) => {
+      let valueA: any = a[sortColumn];
+      let valueB: any = b[sortColumn];
+      
+      // Special handling for dates
+      if (sortColumn === 'project_start' || sortColumn === 'project_end') {
+        valueA = new Date(valueA).getTime();
+        valueB = new Date(valueB).getTime();
+      }
+      
+      // Case insensitive comparison for strings
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+      
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   };
 
   return (
@@ -187,20 +228,92 @@ const ProjectsPage: React.FC = () => {
           <table className="min-w-full rounded-lg overflow-hidden">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <th className="text-left p-3">Name</th>
-                <th className="text-left p-3">Internal #</th>
-                <th className="text-left p-3">Client</th>
-                <th className="text-left p-3">Start Date</th>
-                <th className="text-left p-3">End Date</th>
-                <th className="text-left p-3">Status</th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('internal_number')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">Internal #</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'internal_number' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">Name</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'name' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('client')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">Client</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'client' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('project_start')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">Start Date</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'project_start' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('project_end')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">End Date</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'project_end' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
+                <th 
+                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="select-none">Status</span>
+                    <span className="w-4 inline-block">
+                      {sortColumn === 'status' && (
+                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+                      )}
+                    </span>
+                  </div>
+                </th>
                 <th className="text-center p-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredProjects.map((project) => (
+              {getSortedProjects().map((project) => (
                 <tr key={project.id} className="hover:bg-gray-50">
-                  <td className="p-3">{project.name}</td>
                   <td className="p-3">{project.internal_number}</td>
+                  <td className="p-3">{project.name}</td>
                   <td className="p-3">{project.client}</td>
                   <td className="p-3">{formatDate(project.project_start as string)}</td>
                   <td className="p-3">{formatDate(project.project_end as string)}</td>
