@@ -60,10 +60,10 @@ const ProjectDrawings: React.FC<ProjectDrawingsProps> = ({ projectId }) => {
   return (
     <div>
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-medium text-gray-800">Drawings</h3>
+        <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium">Drawings</h3>
         <Link
           to={`/dashboard/projects/${projectId}/edit`}
-          className="text-blue-600 hover:underline text-sm flex items-center"
+          className="text-blue-600 hover:underline text-sm flex items-center whitespace-nowrap"
         >
           <Plus size={16} className="mr-1" />
           Add Drawing
@@ -86,22 +86,25 @@ const ProjectDrawings: React.FC<ProjectDrawingsProps> = ({ projectId }) => {
       ) : (
         <div className="bg-gray-50 rounded border border-gray-200 divide-y divide-gray-200">
           {drawings.map((drawing) => (
-            <div key={drawing.id} className="p-3 flex justify-between items-center">
-              <div className="flex items-center">
-                <FileText className="w-5 h-5 text-gray-500 mr-2" />
-                <div>
-                  <p className="text-gray-700">{drawing.file_name}</p>
+            <div key={drawing.id} className="p-3 flex items-center">
+              {/* Document info with text wrap */}
+              <div className="flex items-start flex-auto min-w-0 mr-2">
+                <FileText className="w-5 h-5 text-gray-500 mr-2 flex-shrink-0" />
+                <div className="min-w-0 overflow-hidden">
+                  <p className="text-gray-700 break-words">{drawing.file_name}</p>
                   <p className="text-xs text-gray-500">
                     {formatFileSize(drawing.file_size)}
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-2">
+              
+              {/* Actions - fixed width */}
+              <div className="flex space-x-1 flex-shrink-0">
                 <a
                   href={getFileUrl(drawing.file_path)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                   title="View"
                 >
                   <Eye size={16} />
@@ -109,14 +112,14 @@ const ProjectDrawings: React.FC<ProjectDrawingsProps> = ({ projectId }) => {
                 <a
                   href={getFileUrl(drawing.file_path)}
                   download={drawing.file_name}
-                  className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                  className="p-1 text-green-600 hover:bg-green-50 rounded"
                   title="Download"
                 >
                   <Download size={16} />
                 </a>
                 <button
                   onClick={() => handleDeleteDrawing(drawing.id as string)}
-                  className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                  className="p-1 text-red-600 hover:bg-red-50 rounded"
                   title="Delete"
                 >
                   <Trash2 size={16} />

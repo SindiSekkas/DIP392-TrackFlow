@@ -8,7 +8,7 @@ import {
   Calendar, 
   User, 
   MapPin, 
-  Package,
+  Package
 } from 'lucide-react';
 import { Project, projectsApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight } from '../../utils/formatters';
@@ -85,23 +85,41 @@ const ProjectDetailsPage: React.FC = () => {
   }
 
   return (  
-    <div className="bg-white p-6 rounded-lg shadow-md overflow-auto max-h-[calc(100vh-160px)]">
+    <div className="bg-white rounded-lg shadow-md h-[calc(100vh-160px)] flex flex-col overflow-hidden">
       {/* Header with actions */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200">
         <div className="flex items-center">
           <button
             onClick={() => navigate('/dashboard/projects')}
-            className="mr-4 p-2 hover:bg-gray-100 rounded-full"
+            className="mr-3 p-2 hover:bg-gray-100 rounded-full"
             aria-label="Back to projects"
           >
             <ArrowLeft size={20} />
           </button>
-          <h2 className="text-2xl font-bold text-gray-800">{project.name}</h2>
-          <span className="ml-4 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm">
-            #{project.internal_number}
-          </span>
+          <div>
+            <div className="flex items-center">
+              <h2 className="text-xl font-bold text-gray-800">{project.name}</h2>
+              <span className="ml-3 px-3 py-1 bg-gray-100 text-gray-700 rounded-md text-sm">
+                #{project.internal_number}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex space-x-2">
+        
+        <div className="flex">
+          <span
+            className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded text-sm font-medium mr-4 whitespace-nowrap ${
+              project.status === 'Planning'
+                ? 'bg-blue-100 text-blue-800'
+                : project.status === 'In Production'
+                ? 'bg-yellow-100 text-yellow-800'
+                : project.status === 'Completed'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {project.status}
+          </span>
           <button
             onClick={() => navigate(`/dashboard/projects/${project.id}/edit`)}
             className="p-2 text-yellow-600 hover:bg-yellow-50 rounded"
@@ -111,7 +129,7 @@ const ProjectDetailsPage: React.FC = () => {
           </button>
           <button
             onClick={handleDeleteProject}
-            className="p-2 text-red-600 hover:bg-red-50 rounded"
+            className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded"
             title="Delete Project"
           >
             <Trash2 size={20} />
@@ -119,110 +137,110 @@ const ProjectDetailsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Project status */}
-      <div className="mb-6">
-        <span
-          className={`inline-block px-3 py-1 rounded text-sm font-medium ${
-            project.status === 'Planning'
-              ? 'bg-blue-100 text-blue-800'
-              : project.status === 'In Production'
-              ? 'bg-yellow-100 text-yellow-800'
-              : project.status === 'Completed'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-red-100 text-red-800'
-          }`}
-        >
-          {project.status}
-        </span>
-      </div>
-
-      {/* Project details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div>
-          <h3 className="text-lg font-medium text-gray-800 mb-4">Project Details</h3>
-          <div className="space-y-3">
-            <div className="flex items-start">
-              <User className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">Client</p>
-                <p className="text-gray-700">{project.client}</p>
-                {project.client_representative && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Representative: {project.client_representative}
-                  </p>
+      {/* Main content - scrollable */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Left column - Project details */}
+        <div className="md:w-1/3 xl:w-1/5 p-4 border-r border-gray-200 overflow-y-auto overflow-x-hidden">
+          <div className="space-y-6 max-w-full">
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Client Information</h3>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <div className="flex items-start mb-3">
+                  <User className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-gray-800">{project.client}</p>
+                    {project.client_representative && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        Representative: {project.client_representative}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-start">
+                  <User className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-600">Responsible Manager</p>
+                    <p className="font-medium text-gray-800">{project.responsible_manager}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Timeline</h3>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                <div className="flex items-start mb-3">
+                  <Calendar className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-600">Project Period</p>
+                    <p className="font-medium text-gray-800">
+                      {formatDate(project.project_start)} - {formatDate(project.project_end)}
+                    </p>
+                  </div>
+                </div>
+                
+                {project.delivery_date && (
+                  <div className="flex items-start">
+                    <Calendar className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-600">Delivery Date</p>
+                      <p className="font-medium text-gray-800">{formatDate(project.delivery_date)}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
             
-            <div className="flex items-start">
-              <Calendar className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-              <div>
-                <p className="text-sm text-gray-500">Timeframe</p>
-                <p className="text-gray-700">
-                  {formatDate(project.project_start)} - {formatDate(project.project_end)}
-                </p>
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Specifications</h3>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                {project.total_weight !== undefined && (
+                  <div className="flex items-start mb-3">
+                    <Package className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-600">Total Weight</p>
+                      <p className="font-medium text-gray-800">{formatWeight(project.total_weight)}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {project.delivery_location && (
+                  <div className="flex items-start">
+                    <MapPin className="w-5 h-5 text-gray-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-gray-600">Delivery Location</p>
+                      <p className="font-medium text-gray-800">{project.delivery_location}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             
-            {project.delivery_date && (
-              <div className="flex items-start">
-                <Calendar className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500">Delivery Date</p>
-                  <p className="text-gray-700">{formatDate(project.delivery_date)}</p>
-                </div>
-              </div>
-            )}
-            
-            {project.delivery_location && (
-              <div className="flex items-start">
-                <MapPin className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500">Delivery Location</p>
-                  <p className="text-gray-700">{project.delivery_location}</p>
-                </div>
-              </div>
-            )}
-            
-            {project.total_weight !== undefined && (
-              <div className="flex items-start">
-                <Package className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
-                <div>
-                  <p className="text-sm text-gray-500">Total Weight</p>
-                  <p className="text-gray-700">{formatWeight(project.total_weight)}</p>
-                </div>
-              </div>
-            )}
-            
-            <div className="flex items-start">
-              <User className="w-5 h-5 text-gray-500 mr-2 mt-0.5" />
+            {project.notes && (
               <div>
-                <p className="text-sm text-gray-500">Responsible Manager</p>
-                <p className="text-gray-700">{project.responsible_manager}</p>
+                <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Notes</h3>
+                <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                  <p className="text-gray-800 whitespace-pre-line text-sm">{project.notes}</p>
+                </div>
+              </div>
+            )}
+            
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3 flex items-center">
+              </h3>
+              <div className="max-w-full break-words">
+                <ProjectDrawings projectId={project.id as string} />
               </div>
             </div>
           </div>
         </div>
         
-        <div>
-          {project.notes && (
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-2">Notes</h3>
-              <div className="bg-gray-50 p-4 rounded border border-gray-200">
-                <p className="text-gray-700 whitespace-pre-line">{project.notes}</p>
-              </div>
-            </div>
-          )}
+        {/* Right column - Assemblies (takes most of the space) */}
+        <div className="md:w-3/4 xl:w-4/5 flex-1 overflow-y-auto p-4 -mt-4">
+          <ProjectAssemblies projectId={project.id as string} />
         </div>
       </div>
-
-      {/* Project Drawings */}
-      <div className="mt-8">
-        <ProjectDrawings projectId={project.id as string} />
-      </div>
-
-      {/* Assemblies Section */}
-      <ProjectAssemblies projectId={project.id as string} />
     </div>
   );
 };
