@@ -19,10 +19,20 @@ export const preferencesApi = {
    */
   getPreferences: async (module: string): Promise<any> => {
     try {
+      // Get current user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        console.warn('No authenticated user found when getting preferences');
+        return null;
+      }
+      
+      const userId = sessionData.session.user.id;
+      
       const { data, error } = await supabase
         .from('user_preferences')
         .select('preference_data')
         .eq('preference_type', module)
+        .eq('user_id', userId)
         .maybeSingle();
 
       if (error) throw error;
@@ -41,15 +51,46 @@ export const preferencesApi = {
    */
   savePreferences: async (module: string, preferences: any): Promise<void> => {
     try {
-      const { error: upsertError } = await supabase
-        .from('user_preferences')
-        .upsert({
-          preference_type: module,
-          preference_data: preferences
-        },
-        { onConflict: 'user_id,preference_type' });
+      // Get current user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.user) {
+        console.warn('No authenticated user found when saving preferences');
+        return;
+      }
       
-      if (upsertError) throw upsertError;
+      const userId = sessionData.session.user.id;
+      
+      // First check if the record exists
+      const { data: existingData } = await supabase
+        .from('user_preferences')
+        .select('id')
+        .eq('preference_type', module)
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (existingData) {
+        // If it exists, update it
+        const { error: updateError } = await supabase
+          .from('user_preferences')
+          .update({
+            preference_data: preferences,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingData.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        // If it doesn't exist, insert it
+        const { error: insertError } = await supabase
+          .from('user_preferences')
+          .insert({
+            user_id: userId,
+            preference_type: module,
+            preference_data: preferences
+          });
+        
+        if (insertError) throw insertError;
+      }
     } catch (error) {
       console.error(`Error saving ${module} preferences:`, error);
       throw error;
@@ -81,6 +122,33 @@ export const preferencesApi = {
       console.error('Error saving assembly column preferences:', error);
       throw error;
     }
+  },
+
+  /**
+   * Get column preferences for projects
+   * @returns The column preferences for projects
+   */
+  getProjectColumnPreferences: async (): Promise<ColumnPreference[]> => {
+    try {
+      const preferences = await preferencesApi.getPreferences('projects');
+      return preferences?.columns || getDefaultProjectColumns();
+    } catch (error) {
+      console.error('Error fetching project column preferences:', error);
+      return getDefaultProjectColumns();
+    }
+  },
+
+  /**
+   * Save column preferences for projects
+   * @param columns The column preferences to save
+   */
+  saveProjectColumnPreferences: async (columns: ColumnPreference[]): Promise<void> => {
+    try {
+      await preferencesApi.savePreferences('projects', { columns });
+    } catch (error) {
+      console.error('Error saving project column preferences:', error);
+      throw error;
+    }
   }
 };
 
@@ -100,3 +168,19 @@ export const getDefaultAssemblyColumns = (): ColumnPreference[] => [
   { id: 'end_date', label: 'End Date', visible: true },
   { id: 'quality_control_status', label: 'QC Status', visible: false }
 ];  
+
+/**
+ * Get default column preferences for projects
+ */
+export const getDefaultProjectColumns = (): ColumnPreference[] => [
+  { id: 'internal_number', label: 'Internal #', visible: true },
+  { id: 'name', label: 'Name', visible: true },
+  { id: 'client', label: 'Client', visible: true },
+  { id: 'project_start', label: 'Start Date', visible: true },
+  { id: 'project_end', label: 'End Date', visible: true },
+  { id: 'status', label: 'Status', visible: true },
+  { id: 'responsible_manager', label: 'Manager', visible: false },
+  { id: 'delivery_date', label: 'Delivery Date', visible: false },
+  { id: 'delivery_location', label: 'Delivery Location', visible: false },
+  { id: 'total_weight', label: 'Total Weight', visible: false }
+];

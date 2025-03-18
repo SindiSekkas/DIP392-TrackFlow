@@ -1,11 +1,14 @@
 // src/pages/Projects/ProjectsPage.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Filter, Search, Download, Trash2, Edit, Eye, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Filter, Search, Download, Trash2, Edit, Eye, ArrowUp, ArrowDown, Settings } from 'lucide-react';
 import { Project, projectsApi } from '../../lib/projectsApi';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, formatWeight } from '../../utils/formatters';
+import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
+import ColumnSettings from '../../components/ColumnSettings';
+import { ColumnPreference } from '../../lib/preferencesApi';
 
-type SortColumn = 'internal_number' | 'name' | 'client' | 'project_start' | 'project_end' | 'status';
+type SortColumn = 'internal_number' | 'name' | 'client' | 'project_start' | 'project_end' | 'status' | 'responsible_manager' | 'delivery_date' | 'delivery_location' | 'total_weight';
 type SortDirection = 'asc' | 'desc';
 
 const ProjectsPage: React.FC = () => {
@@ -16,7 +19,27 @@ const ProjectsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [sortColumn, setSortColumn] = useState<SortColumn>('internal_number');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
   const navigate = useNavigate();
+  
+  // Column settings
+  const { 
+    projectColumns,
+    saveProjectColumns 
+  } = useColumnSettings();
+
+  // Save column preferences
+  const saveColumnPreferences = async (columns: ColumnPreference[]) => {
+    try {
+      await saveProjectColumns(columns);
+      setShowColumnSettings(false);
+    } catch (error) {
+      console.error('Error saving column preferences:', error);
+    }
+  };
+
+  // Get visible columns
+  const visibleColumns = projectColumns.filter(col => col.visible);
 
   // Loading projects
   useEffect(() => {
@@ -68,25 +91,38 @@ const ProjectsPage: React.FC = () => {
   const exportToCSV = () => {
     if (filteredProjects.length === 0) return;
     
-    const headers = [
-      'Name',
-      'Internal Number',
-      'Client',
-      'Start Date',
-      'End Date',
-      'Status',
-      'Manager'
-    ];
+    // Create headers based on visible columns
+    const headers = visibleColumns.map(col => col.label);
     
-    const csvData = filteredProjects.map(project => [
-      project.name,
-      project.internal_number,
-      project.client,
-      formatDate(project.project_start as string),
-      formatDate(project.project_end as string),
-      project.status,
-      project.responsible_manager
-    ]);
+    // Create rows based on visible columns
+    const csvData = filteredProjects.map(project => {
+      return visibleColumns.map(column => {
+        switch (column.id) {
+          case 'internal_number':
+            return project.internal_number;
+          case 'name':
+            return project.name;
+          case 'client':
+            return project.client;
+          case 'project_start':
+            return formatDate(project.project_start as string);
+          case 'project_end':
+            return formatDate(project.project_end as string);
+          case 'status':
+            return project.status;
+          case 'responsible_manager':
+            return project.responsible_manager;
+          case 'delivery_date':
+            return project.delivery_date ? formatDate(project.delivery_date as string) : '';
+          case 'delivery_location':
+            return project.delivery_location || '';
+          case 'total_weight':
+            return project.total_weight ? formatWeight(project.total_weight) : '';
+          default:
+            return '';
+        }
+      });
+    });
     
     const csvContent = [
       headers.join(','),
@@ -123,9 +159,9 @@ const ProjectsPage: React.FC = () => {
       let valueB: any = b[sortColumn];
       
       // Special handling for dates
-      if (sortColumn === 'project_start' || sortColumn === 'project_end') {
-        valueA = new Date(valueA).getTime();
-        valueB = new Date(valueB).getTime();
+      if (sortColumn === 'project_start' || sortColumn === 'project_end' || sortColumn === 'delivery_date') {
+        valueA = valueA ? new Date(valueA).getTime() : 0;
+        valueB = valueB ? new Date(valueB).getTime() : 0;
       }
       
       // Case insensitive comparison for strings
@@ -138,6 +174,27 @@ const ProjectsPage: React.FC = () => {
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
     });
+  };
+
+  // Render column header with sort indicators
+  const renderColumnHeader = (column: ColumnPreference) => {
+    const id = column.id as SortColumn;
+    return (
+      <th 
+        key={id}
+        className="text-left p-3 cursor-pointer hover:bg-gray-200"
+        onClick={() => handleSort(id)}
+      >
+        <div className="flex items-center justify-between">
+          <span className="select-none">{column.label}</span>
+          <span className="w-4 inline-block">
+            {sortColumn === id && (
+              sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+            )}
+          </span>
+        </div>
+      </th>
+    );
   };
 
   return (
@@ -201,7 +258,26 @@ const ProjectsPage: React.FC = () => {
           <Download size={18} className="mr-2" />
           Export
         </button>
+
+        <button
+          onClick={() => setShowColumnSettings(!showColumnSettings)}
+          className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+        >
+          <Settings size={18} className="mr-2" />
+          Columns
+        </button>
       </div>
+
+      {/* Column settings modal */}
+      {showColumnSettings && (
+        <div className="absolute right-4 top-28 z-10">
+          <ColumnSettings
+            columns={projectColumns}
+            onSave={saveColumnPreferences}
+            onCancel={() => setShowColumnSettings(false)}
+          />
+        </div>
+      )}
 
       {/* Projects table */}
       {loading ? (
@@ -228,110 +304,61 @@ const ProjectsPage: React.FC = () => {
           <table className="min-w-full rounded-lg overflow-hidden">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('internal_number')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">Internal #</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'internal_number' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('name')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">Name</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'name' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('client')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">Client</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'client' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('project_start')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">Start Date</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'project_start' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('project_end')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">End Date</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'project_end' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
-                <th 
-                  className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleSort('status')}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="select-none">Status</span>
-                    <span className="w-4 inline-block">
-                      {sortColumn === 'status' && (
-                        sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
-                      )}
-                    </span>
-                  </div>
-                </th>
+                {/* Dynamic column headers based on visible columns */}
+                {visibleColumns.map(column => renderColumnHeader(column))}
+                
+                {/* Always include actions column */}
                 <th className="text-center p-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {getSortedProjects().map((project) => (
                 <tr key={project.id} className="hover:bg-gray-50">
-                  <td className="p-3">{project.internal_number}</td>
-                  <td className="p-3">{project.name}</td>
-                  <td className="p-3">{project.client}</td>
-                  <td className="p-3">{formatDate(project.project_start as string)}</td>
-                  <td className="p-3">{formatDate(project.project_end as string)}</td>
-                  <td className="p-3">
-                    <span
-                      className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        project.status === 'Planning'
-                          ? 'bg-blue-100 text-blue-800'
-                          : project.status === 'In Production'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : project.status === 'Completed'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {project.status}
-                    </span>
-                  </td>
+                  {/* Dynamic columns based on visible columns */}
+                  {visibleColumns.map(column => {
+                    switch (column.id) {
+                      case 'internal_number':
+                        return <td key={column.id} className="p-3">{project.internal_number}</td>;
+                      case 'name':
+                        return <td key={column.id} className="p-3">{project.name}</td>;
+                      case 'client':
+                        return <td key={column.id} className="p-3">{project.client}</td>;
+                      case 'project_start':
+                        return <td key={column.id} className="p-3">{formatDate(project.project_start as string)}</td>;
+                      case 'project_end':
+                        return <td key={column.id} className="p-3">{formatDate(project.project_end as string)}</td>;
+                      case 'status':
+                        return (
+                          <td key={column.id} className="p-3">
+                            <span
+                              className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                project.status === 'Planning'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : project.status === 'In Production'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : project.status === 'Completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}
+                            >
+                              {project.status}
+                            </span>
+                          </td>
+                        );
+                      case 'responsible_manager':
+                        return <td key={column.id} className="p-3">{project.responsible_manager}</td>;
+                      case 'delivery_date':
+                        return <td key={column.id} className="p-3">{project.delivery_date ? formatDate(project.delivery_date as string) : '—'}</td>;
+                      case 'delivery_location':
+                        return <td key={column.id} className="p-3">{project.delivery_location || '—'}</td>;
+                      case 'total_weight':
+                        return <td key={column.id} className="p-3">{project.total_weight ? formatWeight(project.total_weight) : '—'}</td>;
+                      default:
+                        return <td key={column.id} className="p-3">—</td>;
+                    }
+                  })}
+                  
+                  {/* Actions column */}
                   <td className="p-3">
                     <div className="flex justify-center space-x-2">
                       <button

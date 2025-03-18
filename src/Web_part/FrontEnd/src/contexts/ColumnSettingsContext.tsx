@@ -1,58 +1,128 @@
 // src/Web_part/FrontEnd/src/contexts/ColumnSettingsContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { ColumnPreference, preferencesApi, getDefaultAssemblyColumns } from '../lib/preferencesApi';
+import { ColumnPreference, preferencesApi, getDefaultAssemblyColumns, getDefaultProjectColumns } from '../lib/preferencesApi';
+import { useAuth } from './AuthContext';
 
 interface ColumnSettingsContextType {
   assemblyColumns: ColumnPreference[];
+  projectColumns: ColumnPreference[];
   loadingPreferences: boolean;
   saveAssemblyColumns: (columns: ColumnPreference[]) => Promise<void>;
+  saveProjectColumns: (columns: ColumnPreference[]) => Promise<void>;
   resetAssemblyColumnsToDefault: () => Promise<void>;
+  resetProjectColumnsToDefault: () => Promise<void>;
 }
 
 const ColumnSettingsContext = createContext<ColumnSettingsContextType | undefined>(undefined);
 
 export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [assemblyColumns, setAssemblyColumns] = useState<ColumnPreference[]>(getDefaultAssemblyColumns());
+  const [projectColumns, setProjectColumns] = useState<ColumnPreference[]>(getDefaultProjectColumns());
   const [loadingPreferences, setLoadingPreferences] = useState(true);
+  const { user } = useAuth(); // Get authenticated user
 
-  // Load column preferences on component mount
+  // Load column preferences when user changes or on initial load
   useEffect(() => {
     const loadColumnPreferences = async () => {
+      if (!user) {
+        // If no user is authenticated, use defaults and don't attempt to load
+        setAssemblyColumns(getDefaultAssemblyColumns());
+        setProjectColumns(getDefaultProjectColumns());
+        setLoadingPreferences(false);
+        return;
+      }
+      
       try {
         setLoadingPreferences(true);
-        const preferences = await preferencesApi.getAssemblyColumnPreferences();
-        if (preferences) {
-          setAssemblyColumns(preferences);
+        
+        // Load assembly column preferences
+        const assemblyPreferences = await preferencesApi.getAssemblyColumnPreferences();
+        if (assemblyPreferences && assemblyPreferences.length > 0) {
+          setAssemblyColumns(assemblyPreferences);
+        } else {
+          setAssemblyColumns(getDefaultAssemblyColumns());
+        }
+        
+        // Load project column preferences
+        const projectPreferences = await preferencesApi.getProjectColumnPreferences();
+        if (projectPreferences && projectPreferences.length > 0) {
+          setProjectColumns(projectPreferences);
+        } else {
+          setProjectColumns(getDefaultProjectColumns());
         }
       } catch (error) {
         console.error('Error loading column preferences:', error);
+        // In case of error, reset to defaults
+        setAssemblyColumns(getDefaultAssemblyColumns());
+        setProjectColumns(getDefaultProjectColumns());
       } finally {
         setLoadingPreferences(false);
       }
     };
 
-    loadColumnPreferences();
-  }, []);
+    // Call the function and use cleanup to avoid race conditions
+    let isMounted = true;
+    loadColumnPreferences().then(() => {
+      if (!isMounted) return;
+    });
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
-  // Save column preferences
+  // Save assembly column preferences
   const saveAssemblyColumns = async (columns: ColumnPreference[]) => {
+    if (!user) return; // Don't save if user is not authenticated
+    
     try {
       setAssemblyColumns(columns);
       await preferencesApi.saveAssemblyColumnPreferences(columns);
     } catch (error) {
-      console.error('Error saving column preferences:', error);
+      console.error('Error saving assembly column preferences:', error);
       throw error;
     }
   };
 
-  // Reset to default column preferences
+  // Save project column preferences
+  const saveProjectColumns = async (columns: ColumnPreference[]) => {
+    if (!user) return; // Don't save if user is not authenticated
+    
+    try {
+      setProjectColumns(columns);
+      await preferencesApi.saveProjectColumnPreferences(columns);
+    } catch (error) {
+      console.error('Error saving project column preferences:', error);
+      throw error;
+    }
+  };
+
+  // Reset to default assembly column preferences
   const resetAssemblyColumnsToDefault = async () => {
     try {
       const defaultColumns = getDefaultAssemblyColumns();
       setAssemblyColumns(defaultColumns);
-      await preferencesApi.saveAssemblyColumnPreferences(defaultColumns);
+      
+      if (user) {
+        await preferencesApi.saveAssemblyColumnPreferences(defaultColumns);
+      }
     } catch (error) {
-      console.error('Error resetting column preferences:', error);
+      console.error('Error resetting assembly column preferences:', error);
+      throw error;
+    }
+  };
+
+  // Reset to default project column preferences
+  const resetProjectColumnsToDefault = async () => {
+    try {
+      const defaultColumns = getDefaultProjectColumns();
+      setProjectColumns(defaultColumns);
+      
+      if (user) {
+        await preferencesApi.saveProjectColumnPreferences(defaultColumns);
+      }
+    } catch (error) {
+      console.error('Error resetting project column preferences:', error);
       throw error;
     }
   };
@@ -61,9 +131,12 @@ export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     <ColumnSettingsContext.Provider
       value={{
         assemblyColumns,
+        projectColumns,
         loadingPreferences,
         saveAssemblyColumns,
+        saveProjectColumns,
         resetAssemblyColumnsToDefault,
+        resetProjectColumnsToDefault,
       }}
     >
       {children}
