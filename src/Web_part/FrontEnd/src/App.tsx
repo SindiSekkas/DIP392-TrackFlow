@@ -19,6 +19,7 @@ import AssembliesPage from './pages/Assemblies/AssembliesPage';
 import AssemblyDetailsPage from './pages/Assemblies/AssemblyDetailsPage';
 import CreateAssemblyPage from './pages/Assemblies/CreateAssemblyPage';
 import EditAssemblyPage from './pages/Assemblies/EditAssemblyPage';
+import CreateMultipleAssembliesPage from './pages/Assemblies/CreateMultipleAssembliesPage';
 
 // Placeholder for future components - replace with actual components when created
 const TeamComponent = () => <div className="p-4">Team Component</div>;
@@ -89,6 +90,12 @@ function App() {
                                 </Layout>
                             } />
 
+                            <Route path="/dashboard/assemblies/create-multiple" element={
+                                <Layout>
+                                    <CreateMultipleAssembliesPage />
+                                </Layout>
+                            } />
+                            
                             <Route path="/dashboard/assemblies/create" element={
                                 <Layout>
                                     <CreateAssemblyPage />

@@ -55,13 +55,22 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-medium text-gray-800">Assemblies</h3>
-        <Link
-          to={`/dashboard/assemblies/create?projectId=${projectId}`}
-          className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-        >
-          <Plus size={16} className="mr-1 text-white" />
-          <span className="text-white">Add Assembly</span>
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            to={`/dashboard/assemblies/create-multiple?projectId=${projectId}`}
+            className="inline-flex items-center px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+          >
+            <Plus size={16} className="mr-1 text-white" />
+            <span className="text-white">Add Multiple</span>
+          </Link>
+          <Link
+            to={`/dashboard/assemblies/create?projectId=${projectId}`}
+            className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+          >
+            <Plus size={16} className="mr-1 text-white" />
+            <span className="text-white">Add Assembly</span>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
