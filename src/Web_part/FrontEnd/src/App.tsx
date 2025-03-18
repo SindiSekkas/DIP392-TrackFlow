@@ -90,6 +90,12 @@ function App() {
                                 </Layout>
                             } />
 
+                            <Route path="/dashboard/assemblies/upload" element={
+                                <Layout>
+                                    <CreateMultipleAssembliesPage />
+                                </Layout>
+                            } />
+
                             <Route path="/dashboard/assemblies/create-multiple" element={
                                 <Layout>
                                     <CreateMultipleAssembliesPage />

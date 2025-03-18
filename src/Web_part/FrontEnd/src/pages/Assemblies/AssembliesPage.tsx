@@ -348,13 +348,22 @@ const AssembliesPage: React.FC = () => {
           </div>
           
           {selectedProject && (
-            <Link
-              to={`/dashboard/assemblies/create?projectId=${selectedProject.id}`}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={18} className="mr-2 text-white" />
-              <span className="text-white">Add Assembly</span>
-            </Link>
+            <div className="flex space-x-3">
+              <Link
+                to={`/dashboard/assemblies/upload?projectId=${selectedProject.id}`}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              >
+                <Plus size={18} className="mr-2 text-white" />
+                <span className="text-white">Add Multiple</span>
+              </Link>
+              <Link
+                to={`/dashboard/assemblies/create?projectId=${selectedProject.id}`}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <Plus size={18} className="mr-2 text-white" />
+                <span className="text-white">Add Assembly</span>
+              </Link>
+            </div>
           )}
         </div>
 
