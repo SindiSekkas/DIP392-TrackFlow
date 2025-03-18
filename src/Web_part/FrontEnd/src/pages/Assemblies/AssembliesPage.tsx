@@ -12,13 +12,20 @@ import {
   ChevronRight,
   LayoutGrid,
   Settings,
-  Download
+  Download,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { Project, Assembly, projectsApi, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatDimension } from '../../utils/formatters';
 import { ColumnPreference } from '../../lib/preferencesApi';
 import ColumnSettings from '../../components/ColumnSettings';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
+
+// Define types for sorting
+type SortColumn = 'name' | 'weight' | 'quantity' | 'status' | 'width' | 'height' | 'length' 
+  | 'painting_spec' | 'start_date' | 'end_date' | 'quality_control_status';
+type SortDirection = 'asc' | 'desc';
 
 const AssembliesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -30,11 +37,16 @@ const AssembliesPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  
   // Column preferences from context
   const { 
     assemblyColumns,
     saveAssemblyColumns 
   } = useColumnSettings();
+  
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   
   // Loading and error states
@@ -123,6 +135,50 @@ const AssembliesPage: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
+  // Sort assemblies based on selected column and direction
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // If already sorting by this column, toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Otherwise, sort by this column in ascending order
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sorted assemblies based on sort column and direction
+  const getSortedAssemblies = (): Assembly[] => {
+    return [...filteredAssemblies].sort((a, b) => {
+      let valueA: any = a[sortColumn];
+      let valueB: any = b[sortColumn];
+      
+      // Special handling for dates
+      if (sortColumn === 'start_date' || sortColumn === 'end_date') {
+        valueA = valueA ? new Date(valueA).getTime() : 0;
+        valueB = valueB ? new Date(valueB).getTime() : 0;
+      }
+      
+      // Special handling for numeric values that might be null
+      if ((sortColumn === 'width' || sortColumn === 'height' || sortColumn === 'length') && 
+          (valueA === null || valueB === null)) {
+        if (valueA === null && valueB === null) return 0;
+        if (valueA === null) return sortDirection === 'asc' ? 1 : -1;
+        if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
+      }
+      
+      // Case insensitive comparison for strings
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+      
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
   // Handle deleting an assembly
   const handleDeleteAssembly = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this assembly?')) {
@@ -145,23 +201,40 @@ const AssembliesPage: React.FC = () => {
   const exportToCSV = () => {
     if (filteredAssemblies.length === 0) return;
     
-    const headers = [
-      'Name',
-      'Weight (kg)',
-      'Quantity',
-      'Status',
-      'Start Date',
-      'End Date'
-    ];
+    // Headers based on visible columns
+    const headers = visibleColumns.map(col => col.label);
     
-    const csvData = filteredAssemblies.map(assembly => [
-      assembly.name,
-      assembly.weight.toString(),
-      assembly.quantity.toString(),
-      assembly.status,
-      assembly.start_date ? formatDate(assembly.start_date) : '',
-      assembly.end_date ? formatDate(assembly.end_date) : ''
-    ]);
+    // Prepare data rows based on visible columns
+    const csvData = getSortedAssemblies().map(assembly => {
+      return visibleColumns.map(column => {
+        switch (column.id) {
+          case 'name':
+            return assembly.name;
+          case 'weight':
+            return assembly.weight.toString();
+          case 'quantity':
+            return assembly.quantity.toString();
+          case 'status':
+            return assembly.status;
+          case 'width':
+            return assembly.width ? assembly.width.toString() : '';
+          case 'height':
+            return assembly.height ? assembly.height.toString() : '';
+          case 'length':
+            return assembly.length ? assembly.length.toString() : '';
+          case 'painting_spec':
+            return assembly.painting_spec || '';
+          case 'start_date':
+            return assembly.start_date ? formatDate(assembly.start_date) : '';
+          case 'end_date':
+            return assembly.end_date ? formatDate(assembly.end_date) : '';
+          case 'quality_control_status':
+            return assembly.quality_control_status || '';
+          default:
+            return '';
+        }
+      });
+    });
     
     const csvContent = [
       headers.join(','),
@@ -177,6 +250,27 @@ const AssembliesPage: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Render column header with sort indicators
+  const renderColumnHeader = (column: ColumnPreference) => {
+    const id = column.id as SortColumn;
+    return (
+      <th 
+        key={id}
+        className="text-left p-3 cursor-pointer hover:bg-gray-200"
+        onClick={() => handleSort(id)}
+      >
+        <div className="flex items-center justify-between">
+          <span className="select-none">{column.label}</span>
+          <span className="w-4 inline-block">
+            {sortColumn === id && (
+              sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+            )}
+          </span>
+        </div>
+      </th>
+    );
   };
 
   return (
@@ -373,75 +467,64 @@ const AssembliesPage: React.FC = () => {
             <table className="min-w-full bg-white">
               <thead className="bg-gray-100 text-gray-700">
                 <tr>
-                  {/* Always include name as the first column */}
-                  <th className="text-left p-3 font-medium">Name</th>
-                  
-                  {/* Dynamic columns based on preferences */}
-                  {visibleColumns
-                    .filter(col => col.id !== 'name') // Name is already included
-                    .map(column => (
-                      <th key={column.id} className="text-left p-3 font-medium">
-                        {column.label}
-                      </th>
-                    ))}
+                  {/* Dynamic column headers with sorting */}
+                  {visibleColumns.map(column => renderColumnHeader(column))}
                   
                   {/* Always include actions column */}
                   <th className="text-center p-3 font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredAssemblies.map((assembly) => (
+                {getSortedAssemblies().map((assembly) => (
                   <tr key={assembly.id} className="hover:bg-gray-50">
-                    <td className="p-3">{assembly.name}</td>
-                    
                     {/* Dynamic columns based on preferences */}
-                    {visibleColumns
-                      .filter(col => col.id !== 'name') // Name is already included
-                      .map(column => {
-                        // Render different content based on column id
-                        switch (column.id) {
-                          case 'weight':
-                            return <td key={column.id} className="p-3">{formatWeight(assembly.weight)}</td>;
-                          case 'quantity':
-                            return <td key={column.id} className="p-3">{assembly.quantity}</td>;
-                          case 'status':
-                            return (
-                              <td key={column.id} className="p-3">
-                                <span
-                                  className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                                    assembly.status === 'Waiting'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : assembly.status === 'In Production'
-                                      ? 'bg-yellow-100 text-yellow-800'
-                                      : assembly.status === 'Welding'
-                                      ? 'bg-orange-100 text-orange-800'
-                                      : assembly.status === 'Painting'
-                                      ? 'bg-purple-100 text-purple-800'
-                                      : 'bg-green-100 text-green-800'
-                                  }`}
-                                >
-                                  {assembly.status}
-                                </span>
-                              </td>
-                            );
-                          case 'width':
-                            return <td key={column.id} className="p-3">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
-                          case 'height':
-                            return <td key={column.id} className="p-3">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
-                          case 'length':
-                            return <td key={column.id} className="p-3">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
-                          case 'painting_spec':
-                            return <td key={column.id} className="p-3">{assembly.painting_spec || '—'}</td>;
-                          case 'start_date':
-                            return <td key={column.id} className="p-3">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
-                          case 'end_date':
-                            return <td key={column.id} className="p-3">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
-                          case 'quality_control_status':
-                            return <td key={column.id} className="p-3">{assembly.quality_control_status || '—'}</td>;
-                          default:
-                            return <td key={column.id} className="p-3">—</td>;
-                        }
-                      })}
+                    {visibleColumns.map(column => {
+                      // Render different content based on column id
+                      switch (column.id) {
+                        case 'name':
+                          return <td key={column.id} className="p-3">{assembly.name}</td>;
+                        case 'weight':
+                          return <td key={column.id} className="p-3">{formatWeight(assembly.weight)}</td>;
+                        case 'quantity':
+                          return <td key={column.id} className="p-3">{assembly.quantity}</td>;
+                        case 'status':
+                          return (
+                            <td key={column.id} className="p-3">
+                              <span
+                                className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                  assembly.status === 'Waiting'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : assembly.status === 'In Production'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : assembly.status === 'Welding'
+                                    ? 'bg-orange-100 text-orange-800'
+                                    : assembly.status === 'Painting'
+                                    ? 'bg-purple-100 text-purple-800'
+                                    : 'bg-green-100 text-green-800'
+                                }`}
+                              >
+                                {assembly.status}
+                              </span>
+                            </td>
+                          );
+                        case 'width':
+                          return <td key={column.id} className="p-3">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
+                        case 'height':
+                          return <td key={column.id} className="p-3">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
+                        case 'length':
+                          return <td key={column.id} className="p-3">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
+                        case 'painting_spec':
+                          return <td key={column.id} className="p-3">{assembly.painting_spec || '—'}</td>;
+                        case 'start_date':
+                          return <td key={column.id} className="p-3">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
+                        case 'end_date':
+                          return <td key={column.id} className="p-3">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
+                        case 'quality_control_status':
+                          return <td key={column.id} className="p-3">{assembly.quality_control_status || '—'}</td>;
+                        default:
+                          return <td key={column.id} className="p-3">—</td>;
+                      }
+                    })}
                     
                     <td className="p-3">
                       <div className="flex justify-center space-x-2">
