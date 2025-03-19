@@ -6,7 +6,7 @@ import { Project, projectsApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
-import { ColumnPreference } from '../../lib/preferencesApi';
+import { ColumnPreference, getDefaultProjectColumns } from '../../lib/preferencesApi';
 
 type SortColumn = 'internal_number' | 'name' | 'client' | 'project_start' | 'project_end' | 'status' | 'responsible_manager' | 'delivery_date' | 'delivery_location' | 'total_weight';
 type SortDirection = 'asc' | 'desc';
@@ -275,6 +275,7 @@ const ProjectsPage: React.FC = () => {
             columns={projectColumns}
             onSave={saveColumnPreferences}
             onCancel={() => setShowColumnSettings(false)}
+            getDefaultColumns={getDefaultProjectColumns}
           />
         </div>
       )}

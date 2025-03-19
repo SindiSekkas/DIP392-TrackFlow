@@ -1,18 +1,20 @@
 // src/Web_part/FrontEnd/src/components/ColumnSettings.tsx
 import React, { useState } from 'react';
 import { X, Save, RotateCcw, Settings } from 'lucide-react';
-import { ColumnPreference, getDefaultAssemblyColumns } from '../lib/preferencesApi';
+import { ColumnPreference } from '../lib/preferencesApi';
 
 interface ColumnSettingsProps {
   columns: ColumnPreference[];
   onSave: (columns: ColumnPreference[]) => void;
   onCancel: () => void;
+  getDefaultColumns: () => ColumnPreference[]; // New prop to get the correct default columns
 }
 
 const ColumnSettings: React.FC<ColumnSettingsProps> = ({ 
   columns: initialColumns,
   onSave,
-  onCancel
+  onCancel,
+  getDefaultColumns
 }) => {
   const [columns, setColumns] = useState<ColumnPreference[]>([...initialColumns]);
   
@@ -21,9 +23,9 @@ const ColumnSettings: React.FC<ColumnSettingsProps> = ({
     setColumns([...initialColumns]);
   };
   
-  // Reset to defaults
+  // Reset to defaults - now using the passed function
   const handleResetToDefaults = () => {
-    setColumns(getDefaultAssemblyColumns());
+    setColumns(getDefaultColumns());
   };
   
   // Toggle column visibility

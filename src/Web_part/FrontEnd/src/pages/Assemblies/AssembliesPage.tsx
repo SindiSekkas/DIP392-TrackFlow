@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { Project, Assembly, projectsApi, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatDimension } from '../../utils/formatters';
-import { ColumnPreference } from '../../lib/preferencesApi';
+import { ColumnPreference, getDefaultAssemblyColumns } from '../../lib/preferencesApi';
 import ColumnSettings from '../../components/ColumnSettings';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 
@@ -427,6 +427,7 @@ const AssembliesPage: React.FC = () => {
                 columns={assemblyColumns}
                 onSave={saveColumnPreferences}
                 onCancel={() => setShowColumnSettings(false)}
+                getDefaultColumns={getDefaultAssemblyColumns}
               />
             </div>
           )}
