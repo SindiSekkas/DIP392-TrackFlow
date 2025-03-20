@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { 
-  UploadCloud, 
   Download, 
   Plus, 
   Trash2, 
@@ -12,14 +11,27 @@ import {
   InfoIcon,
   Copy,
   Save,
-  Settings
+  Settings,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Eye
 } from 'lucide-react';
 import { Assembly, Project, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import * as XLSX from 'xlsx';
+import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist';
+import { PDFDocument } from 'pdf-lib';
+
+// Устанавливаем путь к локальному PDF.js worker
+// Файл должен находиться в папке public/pdf-worker/
+GlobalWorkerOptions.workerSrc = '/pdf-worker/pdf.worker.min.mjs';
 
 interface MultipleAssemblyUploadProps {
   projectId?: string;
 }
+
+// Define notification types
+type NotificationType = 'success' | 'error' | 'info' | 'warning';
 
 interface AssemblyRow {
   id: string; // Temporary id for UI
@@ -67,21 +79,32 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   const [project, setProject] = useState<Project | null>(null);
   const [rows, setRows] = useState<AssemblyRow[]>([createNewRow()]);
   const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadedRows, setUploadedRows] = useState<AssemblyRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [successCount, setSuccessCount] = useState(0);
   const [notification, setNotification] = useState<{
-    type: 'success' | 'error' | 'info';
+    type: NotificationType;
     message: string;
   } | null>(null);
   const [activeTab, setActiveTab] = useState<'manual' | 'excel'>('manual');
   const [globalValues, setGlobalValues] = useState<GlobalValues>({});
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  
+  // PDF preview state
+  const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfProcessingError, setPdfProcessingError] = useState<string | null>(null);
 
   // Show a notification with auto-dismiss
-  const showNotification = (type: 'success' | 'error' | 'info', message: string, duration = 3000) => {
+  const showNotification = (type: NotificationType, message: string, duration = 3000) => {
     setNotification({ type, message });
     if (duration > 0) {
       setTimeout(() => setNotification(null), duration);
@@ -107,6 +130,156 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
 
     fetchProject();
   }, [effectiveProjectId, navigate]);
+
+  // Cleanup PDF preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+      }
+    };
+  }, [pdfPreviewUrl]);
+
+  // Function to load PDF and get page count
+  const loadPdfDocument = async (file: File) => {
+    try {
+      setPdfProcessingError(null);
+      setLoading(true);
+      
+      // Create a URL for the PDF file
+      const fileUrl = URL.createObjectURL(file);
+      setPdfPreviewUrl(fileUrl);
+      
+      // Load the PDF document using pdf.js
+      const loadingTask = getDocument(fileUrl);
+      
+      // Add error handling
+      loadingTask.onPassword = (_: unknown, __: unknown) => {
+        setPdfProcessingError('Cannot process password-protected PDF files');
+        return Promise.reject(new Error('Password-protected PDF not supported'));
+      };
+      
+      const pdf = await loadingTask.promise;
+      
+      // Set PDF document and page count
+      setPdfDocument(pdf);
+      setTotalPages(pdf.numPages);
+      setCurrentPage(1);
+      
+      // Render the first page
+      renderPage(1, pdf);
+      
+      setLoading(false);
+      return pdf.numPages;
+    } catch (error) {
+      console.error('Error loading PDF:', error);
+      setPdfProcessingError('Failed to load PDF. Please ensure it is a valid PDF file.');
+      setLoading(false);
+      return 0;
+    }
+  };
+
+  // Function to render a specific page of the PDF
+  const renderPage = async (pageNumber: number, pdf: PDFDocumentProxy | null = pdfDocument) => {
+    if (!pdf || !canvasRef.current) return;
+
+    try {
+      // Get the page
+      const page = await pdf.getPage(pageNumber);
+      
+      // Get the canvas element
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (!context) return;
+      
+      // Get the container dimensions
+      const containerWidth = canvas.parentElement?.clientWidth || 500;
+      // Fixed height for the container - consistent for all pages
+      const containerHeight = 400;
+      
+      // Get the original viewport
+      const originalViewport = page.getViewport({ scale: 1 });
+      
+      // Calculate scales to fit width and height
+      const scaleX = containerWidth / originalViewport.width;
+      const scaleY = containerHeight / originalViewport.height;
+      
+      // Use the smaller scale to ensure the page fits completely in the container
+      const scale = Math.min(scaleX, scaleY);
+      
+      // Create a new viewport with the adjusted scale
+      const scaledViewport = page.getViewport({ scale });
+      
+      // Set canvas dimensions
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      
+      // Render the page
+      const renderContext = {
+        canvasContext: context,
+        viewport: scaledViewport,
+      };
+      
+      await page.render(renderContext).promise;
+    } catch (error) {
+      console.error('Error rendering PDF page:', error);
+      // Fall back to a placeholder if page rendering fails
+      renderPlaceholderPage(pageNumber);
+    }
+  };
+
+  // Render a placeholder page in case of rendering errors
+  const renderPlaceholderPage = (pageNumber: number) => {
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx) return;
+    
+    // Set canvas dimensions to match container proportions
+    canvas.width = 400;  // Width matches typical landscape orientation
+    canvas.height = 300; // Height for the placeholder
+    
+    // Fill background
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw page border
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    
+    // Draw placeholder text
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(`PDF Page ${pageNumber}`, canvas.width / 2, canvas.height / 2 - 20);
+    
+    // Draw some error message
+    ctx.font = '14px Arial';
+    ctx.fillText('Unable to render PDF content', canvas.width / 2, canvas.height / 2 + 20);
+    ctx.fillText('Page will still be assigned to the assembly', canvas.width / 2, canvas.height / 2 + 50);
+  };
+
+  // Navigate to next page
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      const nextPage = currentPage + 1;
+      setCurrentPage(nextPage);
+      renderPage(nextPage);
+    }
+  };
+
+  // Navigate to previous page
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      const prevPage = currentPage - 1;
+      setCurrentPage(prevPage);
+      renderPage(prevPage);
+    }
+  };
 
   // Generate Excel template
   const generateExcelTemplate = () => {
@@ -153,6 +326,8 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       ['6. Leave fields blank if not applicable'],
       ['7. Do not modify or remove the header row'],
       ['8. Each row represents one assembly to be created'],
+      ['9. Upload a PDF with drawings alongside this Excel file'],
+      ['10. Each PDF page will correspond to each row in the Excel file (in order)'],
       ['']
     ];
     
@@ -171,7 +346,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     XLSX.writeFile(wb, filename);
   };
 
-  // Handle file selection
+  // Handle Excel file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -188,11 +363,56 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     }
   };
   
+  // Handle PDF file selection
+  const handlePdfFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      
+      // Validate file type (accept .pdf)
+      if (file.type !== 'application/pdf') {
+        showNotification('error', 'Please upload a PDF file', 0);
+        return;
+      }
+      
+      setPdfFile(file);
+      
+      // Show loading status
+      showNotification('info', 'Processing PDF file...', 0);
+      
+      // Load the PDF and get page count
+      const pageCount = await loadPdfDocument(file);
+      
+      // Clear the loading notification
+      setNotification(null);
+      
+      if (pageCount > 0) {
+        // Check if PDF pages match the number of assemblies
+        if (uploadedRows.length > 0) {
+          if (pageCount < uploadedRows.length) {
+            showNotification('warning', `Warning: The PDF has ${pageCount} pages but there are ${uploadedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
+          } else if (pageCount > uploadedRows.length) {
+            showNotification('info', `The PDF has ${pageCount} pages but there are only ${uploadedRows.length} assemblies. Extra pages will be ignored.`, 6000);
+          } else {
+            showNotification('success', `Perfect! The PDF has ${pageCount} pages matching the ${uploadedRows.length} assemblies.`, 3000);
+          }
+          
+          // Enable preview mode and reset to first page
+          setCurrentPage(1);
+          setPreviewMode(true);
+        }
+      } else if (pdfProcessingError) {
+        showNotification('error', pdfProcessingError, 6000);
+      }
+    }
+  };
+  
   // Reset the file input to allow uploading the same file again
   const resetFileInput = () => {
-    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    if (pdfInputRef.current) {
+      pdfInputRef.current.value = '';
     }
   };
 
@@ -304,6 +524,20 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       });
       
       setUploadedRows(processedRows);
+      
+      // Check if PDF is already loaded and handle page count validation
+      if (pdfFile && totalPages > 0) {
+        if (totalPages < processedRows.length) {
+          showNotification('warning', `Warning: The PDF has ${totalPages} pages but there are ${processedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
+        } else if (totalPages > processedRows.length) {
+          showNotification('info', `The PDF has ${totalPages} pages but there are only ${processedRows.length} assemblies. Extra pages will be ignored.`, 6000);
+        } else {
+          showNotification('success', `Perfect! The PDF has ${totalPages} pages matching the ${processedRows.length} assemblies.`, 3000);
+        }
+        
+        // Enable preview mode
+        setPreviewMode(true);
+      }
     } catch (err) {
       console.error('Error processing Excel file:', err);
       showNotification('error', 'Failed to process the Excel file. Please check the format.', 0);
@@ -455,7 +689,22 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     return isValid;
   };
 
-  // Submit Excel data
+  // Exit preview mode
+  const exitPreviewMode = () => {
+    setPreviewMode(false);
+  };
+  
+  // UseEffect для автоматического рендеринга страницы при входе в режим предпросмотра
+  useEffect(() => {
+    if (previewMode && pdfDocument && currentPage > 0) {
+      // Небольшая задержка для уверенности, что canvas уже в DOM
+      setTimeout(() => {
+        renderPage(currentPage, pdfDocument);
+      }, 100);
+    }
+  }, [previewMode, pdfDocument]);
+
+  // Submit Excel data with PDF
   const submitExcelData = async () => {
     if (!effectiveProjectId) {
       showNotification('error', 'Project ID is missing', 0);
@@ -470,8 +719,15 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       setLoading(true);
       setNotification(null);
       
-      // Create assemblies from uploaded rows
-      const creationPromises = uploadedRows.map(row => {
+      let pdfBytes: ArrayBuffer | null = null;
+      if (pdfFile) {
+        // Read the PDF file once
+        pdfBytes = await pdfFile.arrayBuffer();
+      }
+      
+      // Create assemblies from uploaded rows and assign PDF pages
+      const creationPromises = uploadedRows.map(async (row, index) => {
+        // First create the assembly
         const assemblyData: Partial<Assembly> = {
           project_id: effectiveProjectId,
           name: row.name,
@@ -484,7 +740,35 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
           painting_spec: row.painting_spec
         };
         
-        return assembliesApi.createAssembly(assemblyData as Assembly);
+        const assembly = await assembliesApi.createAssembly(assemblyData as Assembly);
+        
+        // If we have a PDF file and the current page index is valid, extract the page and upload it
+        if (pdfBytes && pdfDocument && index < totalPages) {
+          try {
+            // Extract the specific page using pdf-lib
+            const srcDoc = await PDFDocument.load(pdfBytes);
+            const pageIndices = [index]; // Get only the current page
+            const newPdfDoc = await PDFDocument.create();
+            const copiedPages = await newPdfDoc.copyPages(srcDoc, pageIndices);
+            copiedPages.forEach(page => newPdfDoc.addPage(page));
+            
+            // Create a new PDF with just this page
+            const singlePageBytes = await newPdfDoc.save();
+            
+            // Create file from the single page
+            const pageFilename = `assembly_${assembly.id}_drawing_page_${index + 1}.pdf`;
+            const singlePageFile = new File([singlePageBytes], pageFilename, { type: 'application/pdf' });
+            
+            // Upload the single page as the assembly drawing
+            await assembliesApi.uploadAssemblyDrawing(assembly.id as string, singlePageFile);
+            console.log(`Uploaded PDF page ${index + 1} for assembly ${assembly.id}`);
+          } catch (error) {
+            console.error(`Error processing PDF page ${index + 1} for assembly ${assembly.id}:`, error);
+            // Continue with other assemblies even if one fails
+          }
+        }
+        
+        return assembly;
       });
       
       // Wait for all creations to complete
@@ -496,6 +780,15 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       // Clear form after successful submission
       setExcelFile(null);
       setUploadedRows([]);
+      setPdfFile(null);
+      setPdfDocument(null);
+      setTotalPages(0);
+      setCurrentPage(1);
+      setPreviewMode(false);
+      if (pdfPreviewUrl) {
+        URL.revokeObjectURL(pdfPreviewUrl);
+        setPdfPreviewUrl(null);
+      }
       resetFileInput();
       
       showNotification(
@@ -578,6 +871,14 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     }
   };
 
+  // Get current assembly based on PDF page
+  const getCurrentAssembly = () => {
+    if (uploadedRows.length === 0 || currentPage <= 0 || currentPage > uploadedRows.length) {
+      return null;
+    }
+    return uploadedRows[currentPage - 1];
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-md overflow-auto max-h-[calc(100vh-160px)]">
       {/* Project header */}
@@ -610,11 +911,14 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
         <div className={`mb-4 p-4 rounded flex items-start ${
           notification.type === 'success' ? 'bg-green-50 text-green-700' : 
           notification.type === 'error' ? 'bg-red-50 text-red-700' : 
+          notification.type === 'warning' ? 'bg-yellow-50 text-yellow-700' :
           'bg-blue-50 text-blue-700'
         }`}>
           {notification.type === 'success' ? (
             <CheckCircle size={20} className="mr-2 mt-0.5 flex-shrink-0" />
           ) : notification.type === 'error' ? (
+            <AlertCircle size={20} className="mr-2 mt-0.5 flex-shrink-0" />
+          ) : notification.type === 'warning' ? (
             <AlertCircle size={20} className="mr-2 mt-0.5 flex-shrink-0" />
           ) : (
             <InfoIcon size={20} className="mr-2 mt-0.5 flex-shrink-0" />
@@ -623,43 +927,182 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
         </div>
       )}
       
-      {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <div className="flex space-x-8">
-          <button
-            onClick={() => setActiveTab('manual')}
-            className={`py-2 px-1 font-medium text-sm ${
-              activeTab === 'manual'
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Manual Entry
-          </button>
-          <button
-            onClick={() => setActiveTab('excel')}
-            className={`py-2 px-1 font-medium text-sm ${
-              activeTab === 'excel'
-                ? 'border-b-2 border-blue-500 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Excel Upload
-          </button>
+      {/* PDF Preview Mode */}
+      {previewMode && uploadedRows.length > 0 && pdfDocument && (
+        <div className="mb-6 bg-gray-50 border-2 border-blue-200 rounded-lg p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-blue-800">Assembly & Drawing Preview</h3>
+            <button
+              onClick={exitPreviewMode}
+              className="text-blue-700 hover:bg-blue-50 px-2 py-1 rounded"
+            >
+              Back to Upload
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* PDF Preview */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-sm font-medium">PDF Page {currentPage}/{totalPages}</h4>
+                <div className="text-xs text-gray-500">Drawing Preview</div>
+              </div>
+              <div className="flex justify-center bg-gray-100 rounded-md overflow-hidden relative" style={{ height: '400px' }}>
+                <div className="flex items-center justify-center h-full w-full">
+                  <canvas 
+                    ref={canvasRef} 
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-between pointer-events-none">
+                  <button
+                    onClick={goToPreviousPage}
+                    disabled={currentPage <= 1}
+                    className="p-1 bg-white/80 hover:bg-white text-gray-700 rounded-full shadow m-2 pointer-events-auto disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button
+                    onClick={goToNextPage}
+                    disabled={currentPage >= totalPages}
+                    className="p-1 bg-white/80 hover:bg-white text-gray-700 rounded-full shadow m-2 pointer-events-auto disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            {/* Assembly Info */}
+            <div className="bg-white p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-medium mb-2">Assembly {currentPage} of {uploadedRows.length}</h4>
+              {getCurrentAssembly() ? (
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-xs text-gray-500">Name</span>
+                    <p className="font-medium">{getCurrentAssembly()?.name}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-500">Weight</span>
+                      <p>{getCurrentAssembly()?.weight} kg</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">Quantity</span>
+                      <p>{getCurrentAssembly()?.quantity}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500">Status</span>
+                    <p>
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                        getCurrentAssembly()?.status === 'Waiting'
+                          ? 'bg-blue-100 text-blue-800'
+                          : getCurrentAssembly()?.status === 'In Production'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : getCurrentAssembly()?.status === 'Welding'
+                          ? 'bg-orange-100 text-orange-800'
+                          : getCurrentAssembly()?.status === 'Painting'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {getCurrentAssembly()?.status}
+                      </span>
+                    </p>
+                  </div>
+                  {getCurrentAssembly()?.width || getCurrentAssembly()?.height || getCurrentAssembly()?.length ? (
+                    <div>
+                      <span className="text-xs text-gray-500">Dimensions (mm)</span>
+                      <p>
+                        {getCurrentAssembly()?.width ? `W: ${getCurrentAssembly()?.width}` : ''}{' '}
+                        {getCurrentAssembly()?.height ? `H: ${getCurrentAssembly()?.height}` : ''}{' '}
+                        {getCurrentAssembly()?.length ? `L: ${getCurrentAssembly()?.length}` : ''}
+                      </p>
+                    </div>
+                  ) : null}
+                  {getCurrentAssembly()?.painting_spec ? (
+                    <div>
+                      <span className="text-xs text-gray-500">Painting Spec</span>
+                      <p>{getCurrentAssembly()?.painting_spec}</p>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">No assembly data available for this page</p>
+              )}
+              
+              <div className="mt-6 flex items-center justify-between space-x-2">
+                <button
+                  onClick={exitPreviewMode}
+                  className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Edit Data
+                </button>
+                <button
+                  onClick={submitExcelData}
+                  disabled={loading}
+                  className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                >
+                  {loading ? 'Creating...' : 'Create Assemblies'}
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-4 text-sm text-gray-500 flex items-start">
+            <InfoIcon size={16} className="mr-2 mt-0.5 flex-shrink-0" />
+            <p>
+              Each PDF page will be associated with the corresponding assembly in the order shown. 
+              Use the arrows to navigate through the pages and verify the assignments.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* Tabs */}
+      {!previewMode && (
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex space-x-8">
+            <button
+              onClick={() => setActiveTab('manual')}
+              className={`py-2 px-1 font-medium text-sm ${
+                activeTab === 'manual'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Manual Entry
+            </button>
+            <button
+              onClick={() => setActiveTab('excel')}
+              className={`py-2 px-1 font-medium text-sm ${
+                activeTab === 'excel'
+                  ? 'border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Excel Upload
+            </button>
+          </div>
+        </div>
+      )}
       
       {/* Excel Upload Tab */}
-      {activeTab === 'excel' && (
+      {activeTab === 'excel' && !previewMode && (
         <div>
           <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 mb-6">
-            <FileSpreadsheet size={48} className="text-blue-500 mb-3" />
-            <h3 className="text-lg font-medium mb-2">Excel Upload</h3>
-            <p className="text-gray-500 text-center mb-4 max-w-md">
-              Upload an Excel file with multiple assemblies. Each row will become a new assembly.
-            </p>
+            <div className="flex items-center space-x-4 mb-4">
+              <FileSpreadsheet size={48} className="text-blue-500" />
+              <div>
+                <h3 className="text-lg font-medium mb-1">Excel & PDF Upload</h3>
+                <p className="text-gray-500 text-sm max-w-md">
+                  Upload an Excel file with multiple assemblies along with a PDF containing drawings. 
+                  Each PDF page will be assigned to the corresponding assembly.
+                </p>
+              </div>
+            </div>
             
-            <div className="flex justify-center space-x-4 mb-4">
+            <div className="flex justify-center space-x-4 mb-6">
               <button
                 onClick={generateExcelTemplate}
                 className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700"
@@ -669,45 +1112,79 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
               </button>
             </div>
             
-            <div 
-              className={`relative cursor-pointer w-full max-w-md ${
-                dragActive ? "bg-blue-50 border-blue-400" : "bg-white border-gray-300"
-              } border-2 border-dashed rounded-md hover:bg-gray-50 transition-colors`}
-              onDragEnter={handleDrag}
-              onDragLeave={handleDrag}
-              onDragOver={handleDrag}
-              onDrop={handleDrop}
-            >
-              <label 
-                className="flex flex-col items-center justify-center p-6 text-center"
-                htmlFor="file-upload"
+            <div className="w-full max-w-4xl flex gap-6 mt-4">
+              {/* Excel Upload */}
+              <div 
+                className={`relative cursor-pointer w-1/2 ${
+                  dragActive ? "bg-blue-50 border-blue-400" : "bg-white border-gray-300"
+                } border-2 border-dashed rounded-md hover:bg-gray-50 transition-colors`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
               >
-                <input
-                  id="file-upload"
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileChange}
-                  disabled={loading}
-                />
-                <UploadCloud size={32} className={`mx-auto mb-2 ${dragActive ? "text-blue-600" : "text-blue-500"}`} />
-                <span className="text-sm font-medium">
-                  {excelFile ? (
-                    <span className="text-green-600">{excelFile.name}</span>
-                  ) : (
-                    <span>
-                      <span className="text-blue-600">Click to upload</span> or drag and drop
-                    </span>
-                  )}
-                </span>
-                <p className="text-xs text-gray-500 mt-1">XLSX or XLS files only</p>
-              </label>
+                <label 
+                  className="flex flex-col items-center justify-center p-6 text-center"
+                  htmlFor="file-upload"
+                >
+                  <input
+                    id="file-upload"
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileChange}
+                    disabled={loading}
+                  />
+                  <FileSpreadsheet size={32} className={`mx-auto mb-2 ${dragActive ? "text-blue-600" : "text-blue-500"}`} />
+                  <span className="text-sm font-medium">
+                    {excelFile ? (
+                      <span className="text-green-600">{excelFile.name}</span>
+                    ) : (
+                      <span>
+                        <span className="text-blue-600">Click to upload Excel</span> or drag and drop
+                      </span>
+                    )}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">XLSX or XLS files only</p>
+                </label>
+              </div>
+              
+              {/* PDF Upload */}
+              <div className="relative cursor-pointer w-1/2 border-2 border-dashed rounded-md bg-white border-gray-300 hover:bg-gray-50 transition-colors">
+                <label 
+                  className="flex flex-col items-center justify-center p-6 text-center"
+                  htmlFor="pdf-upload"
+                >
+                  <input
+                    id="pdf-upload"
+                    ref={pdfInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="application/pdf"
+                    onChange={handlePdfFileChange}
+                    disabled={loading || !excelFile}
+                  />
+                  <FileText size={32} className="mx-auto mb-2 text-red-500" />
+                  <span className="text-sm font-medium">
+                    {pdfFile ? (
+                      <span className="text-green-600">{pdfFile.name}</span>
+                    ) : (
+                      <span>
+                        <span className={excelFile ? "text-red-600" : "text-gray-400"}>
+                          {excelFile ? "Click to upload PDF drawings" : "Upload Excel file first"}
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                  <p className="text-xs text-gray-500 mt-1">PDF files only</p>
+                </label>
+              </div>
             </div>
           </div>
           
           {/* Preview uploaded data */}
-          {uploadedRows.length > 0 && (
+          {uploadedRows.length > 0 && !previewMode && (
             <div className="mb-6">
               <h3 className="text-lg font-medium mb-2">Preview ({uploadedRows.length} assemblies)</h3>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
@@ -747,27 +1224,48 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                 </table>
               </div>
               
-              {/* Submit button */}
+              {/* Submit or Preview button */}
               <div className="mt-4 flex justify-end space-x-4">
                 <button
                   type="button"
                   onClick={() => {
                     setExcelFile(null);
                     setUploadedRows([]);
+                    setPdfFile(null);
+                    setPdfDocument(null);
+                    if (pdfPreviewUrl) {
+                      URL.revokeObjectURL(pdfPreviewUrl);
+                      setPdfPreviewUrl(null);
+                    }
                     resetFileInput();
                   }}
                   className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  onClick={submitExcelData}
-                  disabled={loading || uploadedRows.length === 0 || uploadedRows.some(row => !!row.error)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {loading ? 'Creating...' : `Create ${uploadedRows.length} Assemblies`}
-                </button>
+                {pdfFile && pdfDocument ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentPage(1);
+                      setPreviewMode(true);
+                    }}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    disabled={uploadedRows.length === 0 || uploadedRows.some(row => !!row.error)}
+                  >
+                    <Eye size={16} className="mr-2" />
+                    Preview Assignments
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={submitExcelData}
+                    disabled={loading || uploadedRows.length === 0 || uploadedRows.some(row => !!row.error)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {loading ? 'Creating...' : `Create ${uploadedRows.length} Assemblies`}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -775,7 +1273,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       )}
       
       {/* Manual Entry Tab */}
-      {activeTab === 'manual' && (
+      {activeTab === 'manual' && !previewMode && (
         <div>
           {/* Global settings card */}
           <div className="mb-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -1001,7 +1499,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
               <p className="text-blue-700 text-sm flex items-start">
                 <InfoIcon size={16} className="mr-2 mt-0.5 flex-shrink-0" />
                 <span>
-                  Need to set more properties? Use the <strong>Excel template</strong> for advanced fields like quality control.
+                  Need to upload drawings? Use the <strong>Excel template</strong> method to upload assemblies with corresponding PDF drawings.
                 </span>
               </p>
             </div>

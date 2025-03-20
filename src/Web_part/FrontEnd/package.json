@@ -18,6 +18,8 @@
     "dompurify": "^3.2.4",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.476.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.0.375",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.54.2",
