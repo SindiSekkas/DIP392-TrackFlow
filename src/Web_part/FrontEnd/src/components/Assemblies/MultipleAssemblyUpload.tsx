@@ -1015,7 +1015,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
             </div>
             
             {/* Assembly Info */}
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
+            <div className="bg-white p-4 rounded-lg border border-gray-200 relative" style={{ minHeight: '450px' }}>
               <h4 className="text-sm font-medium mb-2">Assembly {currentPage} of {uploadedRows.length}</h4>
               {getCurrentAssembly() ? (
                 <div className="space-y-3">
@@ -1072,7 +1072,8 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                 <p className="text-gray-500 italic">No assembly data available for this page</p>
               )}
               
-              <div className="mt-6 flex items-center justify-between space-x-2">
+              {/* Position the buttons at the bottom of the card with absolute positioning */}
+              <div className="absolute bottom-4 left-4 right-4 mt-8 flex items-center justify-between space-x-2">
                 <button
                   onClick={exitPreviewMode}
                   className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
