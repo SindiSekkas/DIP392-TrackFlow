@@ -91,6 +91,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   const [activeTab, setActiveTab] = useState<'manual' | 'excel'>('manual');
   const [globalValues, setGlobalValues] = useState<GlobalValues>({});
   const [dragActive, setDragActive] = useState(false);
+  const [pdfDragActive, setPdfDragActive] = useState(false);  // Add this line
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   
@@ -375,37 +376,41 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       }
       
       setPdfFile(file);
-      
-      // Show loading status
-      showNotification('info', 'Processing PDF file...', 0);
-      
-      // Load the PDF and get page count
-      const pageCount = await loadPdfDocument(file);
-      
-      // Clear the loading notification
-      setNotification(null);
-      
-      if (pageCount > 0) {
-        // Check if PDF pages match the number of assemblies
-        if (uploadedRows.length > 0) {
-          if (pageCount < uploadedRows.length) {
-            showNotification('warning', `Warning: The PDF has ${pageCount} pages but there are ${uploadedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
-          } else if (pageCount > uploadedRows.length) {
-            showNotification('info', `The PDF has ${pageCount} pages but there are only ${uploadedRows.length} assemblies. Extra pages will be ignored.`, 6000);
-          } else {
-            showNotification('success', `Perfect! The PDF has ${pageCount} pages matching the ${uploadedRows.length} assemblies.`, 3000);
-          }
-          
-          // Enable preview mode and reset to first page
-          setCurrentPage(1);
-          setPreviewMode(true);
-        }
-      } else if (pdfProcessingError) {
-        showNotification('error', pdfProcessingError, 6000);
-      }
+      processPdfFile(file);
     }
   };
   
+  // New helper function to process PDF files from both drag and drop and file input
+  const processPdfFile = async (file: File) => {
+    // Show loading status
+    showNotification('info', 'Processing PDF file...', 0);
+    
+    // Load the PDF and get page count
+    const pageCount = await loadPdfDocument(file);
+    
+    // Clear the loading notification
+    setNotification(null);
+    
+    if (pageCount > 0) {
+      // Check if PDF pages match the number of assemblies
+      if (uploadedRows.length > 0) {
+        if (pageCount < uploadedRows.length) {
+          showNotification('warning', `Warning: The PDF has ${pageCount} pages but there are ${uploadedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
+        } else if (pageCount > uploadedRows.length) {
+          showNotification('info', `The PDF has ${pageCount} pages but there are only ${uploadedRows.length} assemblies. Extra pages will be ignored.`, 6000);
+        } else {
+          showNotification('success', `Perfect! The PDF has ${pageCount} pages matching the ${uploadedRows.length} assemblies.`, 3000);
+        }
+        
+        // Enable preview mode and reset to first page
+        setCurrentPage(1);
+        setPreviewMode(true);
+      }
+    } else if (pdfProcessingError) {
+      showNotification('error', pdfProcessingError, 6000);
+    }
+  };
+
   // Reset the file input to allow uploading the same file again
   const resetFileInput = () => {
     if (fileInputRef.current) {
@@ -576,6 +581,42 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       
       setExcelFile(file);
       processExcelFile(file);
+    }
+  };
+
+  // Add these new handler functions for PDF drag and drop
+  const handlePdfDrag = (e: React.DragEvent<HTMLDivElement | HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setPdfDragActive(true);
+    } else if (e.type === "dragleave") {
+      setPdfDragActive(false);
+    }
+  };
+  
+  const handlePdfDrop = (e: React.DragEvent<HTMLDivElement | HTMLLabelElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setPdfDragActive(false);
+    
+    if (!excelFile) {
+      showNotification('warning', 'Please upload an Excel file first', 3000);
+      return;
+    }
+    
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      
+      // Validate file type (accept PDF only)
+      if (file.type !== 'application/pdf') {
+        showNotification('error', 'Please upload a PDF file', 0);
+        return;
+      }
+      
+      setPdfFile(file);
+      processPdfFile(file);
     }
   };
 
@@ -1151,7 +1192,15 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
               </div>
               
               {/* PDF Upload */}
-              <div className="relative cursor-pointer w-1/2 border-2 border-dashed rounded-md bg-white border-gray-300 hover:bg-gray-50 transition-colors">
+              <div 
+                className={`relative cursor-pointer w-1/2 border-2 border-dashed rounded-md ${
+                  pdfDragActive ? "bg-red-50 border-red-400" : "bg-white border-gray-300"
+                } hover:bg-gray-50 transition-colors ${!excelFile ? "opacity-70" : ""}`}
+                onDragEnter={excelFile ? handlePdfDrag : undefined}
+                onDragLeave={excelFile ? handlePdfDrag : undefined}
+                onDragOver={excelFile ? handlePdfDrag : undefined}
+                onDrop={excelFile ? handlePdfDrop : undefined}
+              >
                 <label 
                   className="flex flex-col items-center justify-center p-6 text-center"
                   htmlFor="pdf-upload"
@@ -1165,14 +1214,14 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                     onChange={handlePdfFileChange}
                     disabled={loading || !excelFile}
                   />
-                  <FileText size={32} className="mx-auto mb-2 text-red-500" />
+                  <FileText size={32} className={`mx-auto mb-2 ${pdfDragActive ? "text-red-600" : "text-red-500"}`} />
                   <span className="text-sm font-medium">
                     {pdfFile ? (
                       <span className="text-green-600">{pdfFile.name}</span>
                     ) : (
                       <span>
                         <span className={excelFile ? "text-red-600" : "text-gray-400"}>
-                          {excelFile ? "Click to upload PDF drawings" : "Upload Excel file first"}
+                          {excelFile ? "Click to upload PDF drawings or drag and drop" : "Upload Excel file first"}
                         </span>
                       </span>
                     )}
