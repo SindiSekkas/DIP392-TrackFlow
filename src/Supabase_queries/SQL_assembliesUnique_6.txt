@@ -1,0 +1,1 @@
+ALTER TABLE assemblies ADD CONSTRAINT unique_assembly_name_per_project UNIQUE (project_id, name);

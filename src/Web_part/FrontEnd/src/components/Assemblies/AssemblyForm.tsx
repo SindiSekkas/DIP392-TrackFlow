@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Assembly, Project, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import { Upload, X, AlertCircle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface AssemblyFormProps {
   initialData?: Assembly;
@@ -44,6 +45,30 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
   const [hasExistingDrawing, setHasExistingDrawing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Check if assembly name already exists in this project
+  const checkDuplicateAssemblyName = async (projectId: string, name: string, assemblyId?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('assemblies')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('name', name);
+      
+      if (error) throw error;
+      
+      // If editing, exclude the current assembly from the check
+      if (assemblyId) {
+        return data.filter(item => item.id !== assemblyId).length > 0;
+      }
+      
+      return data.length > 0;
+    } catch (err) {
+      console.error('Error checking duplicate assembly name:', err);
+      // In case of error, we'll proceed and let the database constraint catch it
+      return false;
+    }
+  };
 
   // Fetch projects for dropdown and check for existing drawing
   useEffect(() => {
@@ -143,6 +168,19 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
       if (formData.start_date && formData.end_date && 
           new Date(formData.end_date) < new Date(formData.start_date)) {
         setError('End date must be after start date.');
+        setLoading(false);
+        return;
+      }
+      
+      // Check for duplicate assembly name within the same project
+      const isDuplicate = await checkDuplicateAssemblyName(
+        formData.project_id, 
+        formData.name, 
+        isEditing ? initialData?.id : undefined
+      );
+      
+      if (isDuplicate) {
+        setError('An assembly with this name already exists in this project. Please use a different name.');
         setLoading(false);
         return;
       }
