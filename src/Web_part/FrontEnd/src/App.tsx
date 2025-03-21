@@ -20,6 +20,10 @@ import AssemblyDetailsPage from './pages/Assemblies/AssemblyDetailsPage';
 import CreateAssemblyPage from './pages/Assemblies/CreateAssemblyPage';
 import EditAssemblyPage from './pages/Assemblies/EditAssemblyPage';
 import CreateMultipleAssembliesPage from './pages/Assemblies/CreateMultipleAssembliesPage';
+import ClientsPage from './pages/Clients/ClientsPage';
+import ClientDetailsPage from './pages/Clients/ClientDetailsPage';
+import CreateClientPage from './pages/Clients/CreateClientPage';
+import EditClientPage from './pages/Clients/EditClientPage';
 
 // Placeholder for future components - replace with actual components when created
 const TeamComponent = () => <div className="p-4">Team Component</div>;
@@ -147,6 +151,31 @@ function App() {
                             <Route path="/dashboard/help" element={
                                 <Layout>
                                     <HelpComponent />
+                                </Layout>
+                            } />
+                            
+                            {/* Client routes */}
+                            <Route path="/dashboard/clients" element={
+                                <Layout>
+                                    <ClientsPage />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/clients/create" element={
+                                <Layout>
+                                    <CreateClientPage />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/clients/:id" element={
+                                <Layout>
+                                    <ClientDetailsPage />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/clients/:id/edit" element={
+                                <Layout>
+                                    <EditClientPage />
                                 </Layout>
                             } />
                             
