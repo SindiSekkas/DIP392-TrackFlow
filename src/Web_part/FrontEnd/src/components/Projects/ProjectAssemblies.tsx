@@ -1,7 +1,7 @@
 // src/components/Projects/ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Settings } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
 import { Assembly, assembliesApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
@@ -18,6 +18,8 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [sortField, setSortField] = useState<string>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Get column preferences from context
   const { assemblyColumns, saveAssemblyColumns } = useColumnSettings();
@@ -70,6 +72,59 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       setError('Failed to delete assembly. Please try again.');
     }
   };
+
+  // Handle sorting
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Toggle sort direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new sort field and default to ascending
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Add this near the top of the component
+  const sortByDate = (dateA: string | null | undefined, dateB: string | null | undefined, direction: 'asc' | 'desc') => {
+    if (!dateA && !dateB) return 0;
+    if (!dateA) return direction === 'asc' ? -1 : 1;
+    if (!dateB) return direction === 'asc' ? 1 : -1;
+    
+    const timeA = new Date(dateA).getTime();
+    const timeB = new Date(dateB).getTime();
+    
+    return direction === 'asc' ? timeA - timeB : timeB - timeA;
+  };
+
+  // Then update the sorting function to handle dates properly
+  const sortedAssemblies = [...assemblies].sort((a, b) => {
+    if (sortField === 'start_date') {
+      return sortByDate(a.start_date as string, b.start_date as string, sortDirection);
+    }
+    if (sortField === 'end_date') {
+      return sortByDate(a.end_date as string, b.end_date as string, sortDirection);
+    }
+    
+    const fieldA = a[sortField as keyof Assembly];
+    const fieldB = b[sortField as keyof Assembly];
+    
+    // Handle null/undefined values
+    if (fieldA === null || fieldA === undefined) return sortDirection === 'asc' ? -1 : 1;
+    if (fieldB === null || fieldB === undefined) return sortDirection === 'asc' ? 1 : -1;
+    
+    // String comparison
+    if (typeof fieldA === 'string' && typeof fieldB === 'string') {
+      return sortDirection === 'asc' 
+        ? fieldA.localeCompare(fieldB)
+        : fieldB.localeCompare(fieldA);
+    }
+    
+    // Number comparison
+    return sortDirection === 'asc'
+      ? Number(fieldA) - Number(fieldB)
+      : Number(fieldB) - Number(fieldA);
+  });
 
   return (
     <div className="mt-8">
@@ -135,11 +190,28 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full rounded-lg overflow-hidden border border-gray-200">
-            <thead className="bg-gray-100 text-gray-700">
+            <thead className="bg-gray-100 text-gray-700 select-none">
               <tr>
                 {/* Dynamic column headers based on preferences */}
                 {visibleColumns.map(column => (
-                  <th key={column.id} className="text-left p-3">{column.label}</th>
+                  <th 
+                    key={column.id} 
+                    className="text-left p-3 cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleSort(column.id)}
+                  >
+                    <div className="flex items-center">
+                      <span>{column.label}</span>
+                      {sortField === column.id && (
+                        <span className="ml-1">
+                          {sortDirection === 'asc' ? (
+                            <ArrowUp size={14} />
+                          ) : (
+                            <ArrowDown size={14} />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
                 ))}
                 
                 {/* Always include actions column */}
@@ -147,7 +219,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {assemblies.map((assembly) => (
+              {sortedAssemblies.map((assembly) => (
                 <tr key={assembly.id} className="hover:bg-gray-50">
                   {/* Dynamic columns based on preferences */}
                   {visibleColumns.map(column => {
