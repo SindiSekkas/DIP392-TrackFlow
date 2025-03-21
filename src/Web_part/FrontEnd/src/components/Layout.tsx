@@ -11,7 +11,8 @@ import {
   Bell,
   UserPlus,
   Layers,
-  Box
+  Box,
+  Building
 } from 'lucide-react';
 //import LogoImage from '/FlowCat.webp';
 import LogoImage from '/Logo/logo-transparent_notext_blue.png';
@@ -428,6 +429,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to="/dashboard/assemblies"
                   expanded={sidebarExpanded}
                   id="assemblies"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<Building size={24} />}
+                  label="Clients"
+                  to="/dashboard/clients"
+                  expanded={sidebarExpanded}
+                  id="clients"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />

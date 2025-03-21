@@ -1,4 +1,4 @@
-// src/Web_part/FrontEnd/src/lib/preferencesApi.ts
+// src/lib/preferencesApi.ts
 import { supabase } from './supabase';
 
 export interface ColumnPreference {
@@ -149,6 +149,33 @@ export const preferencesApi = {
       console.error('Error saving project column preferences:', error);
       throw error;
     }
+  },
+
+  /**
+   * Get column preferences for clients
+   * @returns The column preferences for clients
+   */
+  getClientColumnPreferences: async (): Promise<ColumnPreference[]> => {
+    try {
+      const preferences = await preferencesApi.getPreferences('clients');
+      return preferences?.columns || getDefaultClientColumns();
+    } catch (error) {
+      console.error('Error fetching client column preferences:', error);
+      return getDefaultClientColumns();
+    }
+  },
+
+  /**
+   * Save column preferences for clients
+   * @param columns The column preferences to save
+   */
+  saveClientColumnPreferences: async (columns: ColumnPreference[]): Promise<void> => {
+    try {
+      await preferencesApi.savePreferences('clients', { columns });
+    } catch (error) {
+      console.error('Error saving client column preferences:', error);
+      throw error;
+    }
   }
 };
 
@@ -183,4 +210,17 @@ export const getDefaultProjectColumns = (): ColumnPreference[] => [
   { id: 'delivery_date', label: 'Delivery Date', visible: false },
   { id: 'delivery_location', label: 'Delivery Location', visible: false },
   { id: 'total_weight', label: 'Total Weight', visible: false }
+];
+
+/**
+ * Get default column preferences for clients
+ */
+export const getDefaultClientColumns = (): ColumnPreference[] => [
+  { id: 'company_name', label: 'Company Name', visible: true },
+  { id: 'registration_code', label: 'Registration Code', visible: true },
+  { id: 'vat_code', label: 'VAT Code', visible: true },
+  { id: 'contact_person', label: 'Contact Person', visible: true },
+  { id: 'email', label: 'Email', visible: false },
+  { id: 'phone', label: 'Phone', visible: false },
+  { id: 'address', label: 'Address', visible: false }
 ];

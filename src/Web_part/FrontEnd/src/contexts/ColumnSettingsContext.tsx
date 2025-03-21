@@ -1,16 +1,25 @@
-// src/Web_part/FrontEnd/src/contexts/ColumnSettingsContext.tsx
+// src/contexts/ColumnSettingsContext.tsx
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { ColumnPreference, preferencesApi, getDefaultAssemblyColumns, getDefaultProjectColumns } from '../lib/preferencesApi';
+import { 
+  ColumnPreference, 
+  preferencesApi, 
+  getDefaultAssemblyColumns, 
+  getDefaultProjectColumns,
+  getDefaultClientColumns 
+} from '../lib/preferencesApi';
 import { useAuth } from './AuthContext';
 
 interface ColumnSettingsContextType {
   assemblyColumns: ColumnPreference[];
   projectColumns: ColumnPreference[];
+  clientColumns: ColumnPreference[];
   loadingPreferences: boolean;
   saveAssemblyColumns: (columns: ColumnPreference[]) => Promise<void>;
   saveProjectColumns: (columns: ColumnPreference[]) => Promise<void>;
+  saveClientColumns: (columns: ColumnPreference[]) => Promise<void>;
   resetAssemblyColumnsToDefault: () => Promise<void>;
   resetProjectColumnsToDefault: () => Promise<void>;
+  resetClientColumnsToDefault: () => Promise<void>;
 }
 
 const ColumnSettingsContext = createContext<ColumnSettingsContextType | undefined>(undefined);
@@ -18,6 +27,7 @@ const ColumnSettingsContext = createContext<ColumnSettingsContextType | undefine
 export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [assemblyColumns, setAssemblyColumns] = useState<ColumnPreference[]>(getDefaultAssemblyColumns());
   const [projectColumns, setProjectColumns] = useState<ColumnPreference[]>(getDefaultProjectColumns());
+  const [clientColumns, setClientColumns] = useState<ColumnPreference[]>(getDefaultClientColumns());
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const { user } = useAuth(); // Get authenticated user
 
@@ -28,6 +38,7 @@ export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         // If no user is authenticated, use defaults and don't attempt to load
         setAssemblyColumns(getDefaultAssemblyColumns());
         setProjectColumns(getDefaultProjectColumns());
+        setClientColumns(getDefaultClientColumns());
         setLoadingPreferences(false);
         return;
       }
@@ -50,11 +61,20 @@ export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
         } else {
           setProjectColumns(getDefaultProjectColumns());
         }
+        
+        // Load client column preferences
+        const clientPreferences = await preferencesApi.getClientColumnPreferences();
+        if (clientPreferences && clientPreferences.length > 0) {
+          setClientColumns(clientPreferences);
+        } else {
+          setClientColumns(getDefaultClientColumns());
+        }
       } catch (error) {
         console.error('Error loading column preferences:', error);
         // In case of error, reset to defaults
         setAssemblyColumns(getDefaultAssemblyColumns());
         setProjectColumns(getDefaultProjectColumns());
+        setClientColumns(getDefaultClientColumns());
       } finally {
         setLoadingPreferences(false);
       }
@@ -97,6 +117,19 @@ export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   };
 
+  // Save client column preferences
+  const saveClientColumns = async (columns: ColumnPreference[]) => {
+    if (!user) return; // Don't save if user is not authenticated
+    
+    try {
+      setClientColumns(columns);
+      await preferencesApi.saveClientColumnPreferences(columns);
+    } catch (error) {
+      console.error('Error saving client column preferences:', error);
+      throw error;
+    }
+  };
+
   // Reset to default assembly column preferences
   const resetAssemblyColumnsToDefault = async () => {
     try {
@@ -127,16 +160,34 @@ export const ColumnSettingsProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   };
 
+  // Reset to default client column preferences
+  const resetClientColumnsToDefault = async () => {
+    try {
+      const defaultColumns = getDefaultClientColumns();
+      setClientColumns(defaultColumns);
+      
+      if (user) {
+        await preferencesApi.saveClientColumnPreferences(defaultColumns);
+      }
+    } catch (error) {
+      console.error('Error resetting client column preferences:', error);
+      throw error;
+    }
+  };
+
   return (
     <ColumnSettingsContext.Provider
       value={{
         assemblyColumns,
         projectColumns,
+        clientColumns,
         loadingPreferences,
         saveAssemblyColumns,
         saveProjectColumns,
+        saveClientColumns,
         resetAssemblyColumnsToDefault,
         resetProjectColumnsToDefault,
+        resetClientColumnsToDefault,
       }}
     >
       {children}

@@ -21,6 +21,7 @@ import { Assembly, Project, assembliesApi, projectsApi } from '../../lib/project
 import * as XLSX from 'xlsx';
 import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist';
 import { PDFDocument } from 'pdf-lib';
+import { supabase } from '../../lib/supabase'; // Import supabase client
 
 // Устанавливаем путь к локальному PDF.js worker
 // Файл должен находиться в папке public/pdf-worker/
@@ -745,6 +746,46 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     }
   }, [previewMode, pdfDocument]);
 
+  // Add this function to check for duplicate assembly names
+  const checkDuplicateAssemblyName = async (projectId: string, name: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('assemblies')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('name', name);
+      
+      if (error) throw error;
+      
+      return data && data.length > 0;
+    } catch (err) {
+      console.error('Error checking duplicate assembly name:', err);
+      // In case of error, we'll proceed and let the database constraint catch it
+      return false;
+    }
+  };
+
+  // Function to check for internal duplicates in the array of rows
+  const checkInternalDuplicates = (rows: AssemblyRow[]): string[] => {
+    const nameMap = new Map<string, number>();
+    const duplicates: string[] = [];
+    
+    rows.forEach(row => {
+      const name = row.name.trim();
+      if (name) {
+        if (nameMap.has(name)) {
+          if (!duplicates.includes(name)) {
+            duplicates.push(name);
+          }
+        } else {
+          nameMap.set(name, 1);
+        }
+      }
+    });
+    
+    return duplicates;
+  };
+
   // Submit Excel data with PDF
   const submitExcelData = async () => {
     if (!effectiveProjectId) {
@@ -756,9 +797,28 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       return;
     }
     
+    // Check for duplicate names within the uploaded rows
+    const internalDuplicates = checkInternalDuplicates(uploadedRows);
+    if (internalDuplicates.length > 0) {
+      showNotification('error', `Found duplicate assembly names in your data: ${internalDuplicates.join(', ')}`, 0);
+      return;
+    }
+    
     try {
       setLoading(true);
       setNotification(null);
+      
+      // Check for existing assemblies with the same names in the project
+      for (const row of uploadedRows) {
+        if (row.name.trim()) {
+          const isDuplicate = await checkDuplicateAssemblyName(effectiveProjectId, row.name.trim());
+          if (isDuplicate) {
+            setLoading(false);
+            showNotification('error', `Assembly name "${row.name}" already exists in this project.`, 0);
+            return;
+          }
+        }
+      }
       
       let pdfBytes: ArrayBuffer | null = null;
       if (pdfFile) {
@@ -862,9 +922,28 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       return;
     }
     
+    // Check for duplicate names within the manually entered rows
+    const internalDuplicates = checkInternalDuplicates(rows);
+    if (internalDuplicates.length > 0) {
+      showNotification('error', `Found duplicate assembly names in your data: ${internalDuplicates.join(', ')}`, 0);
+      return;
+    }
+    
     try {
       setLoading(true);
       setNotification(null);
+      
+      // Check for existing assemblies with the same names in the project
+      for (const row of rows) {
+        if (row.name.trim()) {
+          const isDuplicate = await checkDuplicateAssemblyName(effectiveProjectId, row.name.trim());
+          if (isDuplicate) {
+            setLoading(false);
+            showNotification('error', `Assembly name "${row.name}" already exists in this project.`, 0);
+            return;
+          }
+        }
+      }
       
       // Create assemblies from manual rows
       const creationPromises = rows.map(row => {
