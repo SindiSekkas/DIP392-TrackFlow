@@ -1,5 +1,5 @@
 // src/pages/Assemblies/AssemblyDetailsPage.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   Edit, 
@@ -10,11 +10,14 @@ import {
   Download,
   Eye,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Printer
 } from 'lucide-react';
 import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
 import { supabase } from '../../lib/supabase';
+import JsBarcode from 'jsbarcode';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
 
 const AssemblyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +27,9 @@ const AssemblyDetailsPage: React.FC = () => {
   const [drawing, setDrawing] = useState<AssemblyDrawing | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const barcodeContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle back navigation
   const handleBackNavigation = () => {
@@ -63,6 +69,10 @@ const AssemblyDetailsPage: React.FC = () => {
         const drawingData = await assembliesApi.getAssemblyDrawing(id);
         setDrawing(drawingData);
         
+        // Fetch barcode if exists
+        const barcodeData = await assembliesApi.getAssemblyBarcode(id);
+        setBarcodeData(barcodeData);
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching assembly data:', err);
@@ -74,6 +84,30 @@ const AssemblyDetailsPage: React.FC = () => {
 
     fetchAssemblyData();
   }, [id, navigate]);
+
+  // Render barcode when barcodeData changes
+  useEffect(() => {
+    if (barcodeData && barcodeContainerRef.current) {
+      try {
+        // Clear previous barcode
+        barcodeContainerRef.current.innerHTML = '<svg class="barcode"></svg>';
+        const barcodeSvg = barcodeContainerRef.current.querySelector('.barcode');
+        
+        if (barcodeSvg) {
+          JsBarcode(barcodeSvg, barcodeData.barcode, {
+            format: "CODE128",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 14,
+            margin: 10
+          });
+        }
+      } catch (err) {
+        console.error('Error rendering barcode:', err);
+      }
+    }
+  }, [barcodeData]);
 
   const handleDeleteAssembly = async () => {
     if (!assembly?.id || !window.confirm('Are you sure you want to delete this assembly?')) {
@@ -97,6 +131,29 @@ const AssemblyDetailsPage: React.FC = () => {
   const getFileUrl = (filePath: string) => {
     const { data } = supabase.storage.from('files').getPublicUrl(filePath);
     return data.publicUrl;
+  };
+
+  // Generate barcode
+  const handleGenerateBarcode = async () => {
+    if (!assembly?.id) return;
+    
+    try {
+      setLoading(true);
+      const data = await assembliesApi.generateAssemblyBarcode(assembly.id);
+      setBarcodeData(data);
+    } catch (err) {
+      console.error('Error generating barcode:', err);
+      setError('Failed to generate barcode. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Print barcode
+  const handlePrintBarcode = () => {
+    if (assembly && barcodeData) {
+      setShowPrintModal(true);
+    }
   };
 
   if (loading) {
@@ -283,7 +340,7 @@ const AssemblyDetailsPage: React.FC = () => {
           </div>
         </div>
         
-        {/* Right column - Drawing */}
+        {/* Right column - Drawing and Barcode */}
         <div>
           <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
             <FileText size={18} className="mr-2 text-gray-500" />
@@ -291,7 +348,7 @@ const AssemblyDetailsPage: React.FC = () => {
           </h3>
           
           {drawing ? (
-            <div className="bg-gray-50 rounded border border-gray-200 p-4">
+            <div className="bg-gray-50 rounded border border-gray-200 p-4 mb-6">
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <p className="text-gray-700">{drawing.file_name}</p>
@@ -330,7 +387,7 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 h-[495px] flex flex-col justify-center items-center"> {/* Matching height */}
+            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center" style={{height: '400px'}}>
               <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
               <Link
                 to={`/dashboard/assemblies/${assembly.id}/edit`}
@@ -340,8 +397,52 @@ const AssemblyDetailsPage: React.FC = () => {
               </Link>
             </div>
           )}
+          
+          {/* Barcode Section */}
+          <div className="mt-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Assembly Barcode</h3>
+            <div className="border p-3 rounded bg-gray-50">
+              {barcodeData ? (
+                <div className="flex flex-col items-center">
+                  <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
+                  <div className="text-sm text-gray-500">{barcodeData.barcode}</div>
+                  <div className="mt-2 flex space-x-2">
+                    <button
+                      onClick={handlePrintBarcode}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      <Printer size={14} className="inline mr-1" /> Print
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-3">
+                  <p className="text-gray-500 mb-2">No barcode generated yet</p>
+                  <button
+                    onClick={handleGenerateBarcode}
+                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Generate Barcode
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+      
+      {/* Barcode Print Modal */}
+      {showPrintModal && assembly && barcodeData && (
+        <BarcodePrintView 
+          barcodes={[{
+            id: assembly.id || '',
+            barcode: barcodeData.barcode,
+            assemblyName: assembly.name,
+            projectName: assembly.project?.name || ''
+          }]}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
     </div>
   );
 };

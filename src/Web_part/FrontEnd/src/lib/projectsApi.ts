@@ -1,7 +1,6 @@
 // src/lib/projectsApi.ts
 import { supabase } from './supabase';
 
-
 // Types
 export interface Project {
   id?: string;
@@ -393,5 +392,32 @@ export const assembliesApi = {
       .eq('id', drawingId);
     
     if (deleteError) throw deleteError;
+  },
+
+  // Get barcode for an assembly
+  getAssemblyBarcode: async (assemblyId: string): Promise<{id: string, barcode: string} | null> => {
+    const { data, error } = await supabase
+      .from('assembly_barcodes')
+      .select('id, barcode')
+      .eq('assembly_id', assemblyId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Generate barcode for an assembly
+  generateAssemblyBarcode: async (assemblyId: string): Promise<{id: string, barcode: string}> => {
+    const { data, error } = await supabase
+      .from('assembly_barcodes')
+      .insert({
+        assembly_id: assemblyId,
+        barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
   }
 };

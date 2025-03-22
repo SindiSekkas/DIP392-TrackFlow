@@ -5,6 +5,7 @@ import {
   Users,
   Calendar,
   BarChart2,
+  BarChart4,
   Settings,
   BookOpen,
   Search,
@@ -480,6 +481,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to="/dashboard/nfc-cards"
                   expanded={sidebarExpanded}
                   id="nfc-cards"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<BarChart4 size={24} />}
+                  label="Barcode Management"
+                  to="/dashboard/barcodes"
+                  expanded={sidebarExpanded}
+                  id="barcodes"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />
