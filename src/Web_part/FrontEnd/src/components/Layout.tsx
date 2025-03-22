@@ -12,7 +12,8 @@ import {
   UserPlus,
   Layers,
   Box,
-  Building
+  Building,
+  CreditCard
 } from 'lucide-react';
 //import LogoImage from '/FlowCat.webp';
 import LogoImage from '/Logo/logo-transparent_notext_blue.png';
@@ -470,6 +471,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to="/dashboard/calendar"
                   expanded={sidebarExpanded}
                   id="calendar"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<CreditCard size={24} />}
+                  label="Card Management"
+                  to="/dashboard/nfc-cards"
+                  expanded={sidebarExpanded}
+                  id="nfc-cards"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />
