@@ -25,7 +25,6 @@ import ClientDetailsPage from './pages/Clients/ClientDetailsPage';
 import CreateClientPage from './pages/Clients/CreateClientPage';
 import EditClientPage from './pages/Clients/EditClientPage';
 import NFCCardManagement from './pages/NFCCards/NFCCardManagement';
-import BarcodeManagementPage from './pages/Assemblies/BarcodeManagementPage';
 
 // Placeholder for future components - replace with actual components when created
 const TeamComponent = () => <div className="p-4">Team Component</div>;
@@ -192,12 +191,6 @@ function App() {
                                 <ProtectedRoute requiredRole={['admin', 'manager']}>
                                     <NFCCardManagement />
                                 </ProtectedRoute>
-                            } />
-
-                            <Route path="/dashboard/barcodes" element={
-                                <Layout>
-                                    <BarcodeManagementPage />
-                                </Layout>
                             } />
 
                             <Route path="/admin" element={
