@@ -101,25 +101,21 @@ const NFCCardManagement: React.FC = () => {
       // Fetch user details for each card
       const cardsWithUserInfo = await Promise.all(
         cards.map(async (card) => {
-          // Get user profile
+          // Get user profile data (only fields that exist in the schema)
           const { data: profile } = await supabase
             .from('user_profiles')
-            .select('full_name, auth_user_id')
+            .select('full_name')
             .eq('auth_user_id', card.user_id)
             .single();
           
-          // Get user email
-          const { data: userData } = await supabase
-            .from('auth.users')  // Try to access user email
-            .select('email')
-            .eq('id', card.user_id)
-            .single();
+          // Don't try to fetch email directly from auth.users table
+          // This is what was causing the errors
           
           return {
             ...card,
             user: {
               fullName: profile?.full_name || 'Unknown User',
-              email: userData?.email || fetchEmailFromProfile(card.user_id)
+              email: '' // We'll leave this empty for now
             }
           };
         })
@@ -127,31 +123,10 @@ const NFCCardManagement: React.FC = () => {
       
       setCards(cardsWithUserInfo);
     } catch (err: any) {
-      console.error('Error fetching NFC cards:', err);
-      setError(err.message || 'Failed to load NFC cards. Please try again.');
+      console.error('Error fetching cards:', err);
+      setError(err.message || 'Failed to load cards. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Function to fetch email from profiles or user metadata
-  const fetchEmailFromProfile = async (userId: string): Promise<string> => {
-    try {
-      // First try to get from user_profiles if there's an email field
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('email')
-        .eq('auth_user_id', userId)
-        .single();
-      
-      if (profile?.email) {
-        return profile.email;
-      }
-      
-      // Alternatively, could fetch from another source if available
-      return '';
-    } catch {
-      return '';
     }
   };
 
@@ -166,18 +141,11 @@ const NFCCardManagement: React.FC = () => {
       
       if (error) throw error;
       
-      // For each profile, try to get the email
-      const usersWithEmails = await Promise.all(
-        profiles.map(async (profile) => {
-          const email = await fetchEmailFromProfile(profile.auth_user_id);
-          return {
-            ...profile,
-            email
-          };
-        })
-      );
-      
-      setUsers(usersWithEmails);
+      // Set users without trying to fetch emails
+      setUsers(profiles.map(profile => ({
+        ...profile,
+        email: '' // Skip email fetching for now
+      })));
     } catch (err: any) {
       console.error('Error fetching users:', err);
     }
@@ -188,8 +156,7 @@ const NFCCardManagement: React.FC = () => {
     const searchLower = searchTerm.toLowerCase();
     return (
       card.card_id.toLowerCase().includes(searchLower) ||
-      (card.user?.fullName?.toLowerCase() || '').includes(searchLower) ||
-      (card.user?.email?.toLowerCase() || '').includes(searchLower)
+      (card.user?.fullName?.toLowerCase() || '').includes(searchLower)
     );
   });
 
@@ -343,8 +310,8 @@ const NFCCardManagement: React.FC = () => {
       closeForm();
       fetchCards();
     } catch (err: any) {
-      console.error('Error assigning NFC card:', err);
-      setError(err.message || 'Failed to assign NFC card. Please try again.');
+      console.error('Error assigning card:', err);
+      setError(err.message || 'Failed to assign card. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -375,7 +342,7 @@ const NFCCardManagement: React.FC = () => {
         setSuccess(null);
       }, 3000);
     } catch (err: any) {
-      console.error('Error toggling NFC card status:', err);
+      console.error('Error toggling card status:', err);
       setError(err.message || 'Failed to update card status. Please try again.');
     } finally {
       setLoading(false);
@@ -403,8 +370,8 @@ const NFCCardManagement: React.FC = () => {
       
       closeDeleteConfirm();
     } catch (err: any) {
-      console.error('Error deleting NFC card:', err);
-      setError(err.message || 'Failed to delete NFC card. Please try again.');
+      console.error('Error deleting card:', err);
+      setError(err.message || 'Failed to delete card. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -418,7 +385,6 @@ const NFCCardManagement: React.FC = () => {
     const headers = [
       'Card ID', 
       'User Name', 
-      'User Email', 
       'Status', 
       'Last Used', 
       'Created At'
@@ -428,7 +394,6 @@ const NFCCardManagement: React.FC = () => {
     const csvData = filteredCards.map(card => [
       card.card_id,
       card.user?.fullName || 'Unknown',
-      card.user?.email || '',
       card.is_active ? 'Active' : 'Inactive',
       card.last_used ? formatDate(card.last_used) : 'Never',
       formatDate(card.created_at || '')
@@ -477,7 +442,7 @@ const NFCCardManagement: React.FC = () => {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center">
             <CreditCard size={24} className="mr-2 text-blue-600" />
-            NFC Card Management
+            Card Management
           </h2>
           {!showForm && (
             <button
@@ -516,7 +481,7 @@ const NFCCardManagement: React.FC = () => {
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-800">
-                  {selectedCardId ? 'Edit NFC Card Assignment' : 'Assign New NFC Card'}
+                  {selectedCardId ? 'Edit Card Assignment' : 'Assign New Card'}
                 </h3>
                 <button 
                   onClick={closeForm} 
@@ -538,7 +503,7 @@ const NFCCardManagement: React.FC = () => {
                       value={newCardId}
                       onChange={(e) => setNewCardId(e.target.value)}
                       className="w-full p-2 border border-gray-300 rounded-md"
-                      placeholder="Enter NFC card ID"
+                      placeholder="Enter card UID"
                       required
                     />
                   </div>
@@ -640,11 +605,11 @@ const NFCCardManagement: React.FC = () => {
         {loading && !cards.length ? (
           <div className="text-center py-10">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-            <p className="mt-2 text-gray-600">Loading NFC cards...</p>
+            <p className="mt-2 text-gray-600">Loading cards...</p>
           </div>
         ) : filteredCards.length === 0 ? (
           <div className="text-center py-10 bg-gray-50 rounded-md">
-            <p className="text-gray-500">No NFC cards found.</p>
+            <p className="text-gray-500">No cards found.</p>
             {searchTerm ? (
               <p className="text-gray-400 mt-1">Try adjusting your search.</p>
             ) : (
@@ -652,7 +617,7 @@ const NFCCardManagement: React.FC = () => {
                 onClick={() => openForm()}
                 className="mt-4 text-blue-600 hover:underline"
               >
-                Assign your first NFC card
+                Assign your first card
               </button>
             )}
           </div>
@@ -677,7 +642,6 @@ const NFCCardManagement: React.FC = () => {
                         <User size={16} className="text-gray-400 mr-2" />
                         <div>
                           <div>{card.user?.fullName}</div>
-                          <div className="text-xs text-gray-500">{card.user?.email || ''}</div>
                         </div>
                       </div>
                     </td>
@@ -745,11 +709,11 @@ const NFCCardManagement: React.FC = () => {
             ></div>
             <div className="bg-white rounded-lg shadow-lg max-w-md w-full z-10 relative">
               <div className="p-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Delete NFC Card</h3>
+                <h3 className="text-lg font-medium text-gray-900">Delete Card</h3>
               </div>
               <div className="p-4">
                 <p className="text-gray-700">
-                  Are you sure you want to delete the NFC card <span className="font-mono font-medium">{cardToDelete.card_id}</span>?
+                  Are you sure you want to delete the card <span className="font-mono font-medium">{cardToDelete.card_id}</span>?
                 </p>
                 <p className="text-gray-500 text-sm mt-2">
                   This action cannot be undone.

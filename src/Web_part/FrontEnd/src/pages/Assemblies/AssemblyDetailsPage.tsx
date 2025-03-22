@@ -182,7 +182,7 @@ const AssemblyDetailsPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md overflow-auto max-h-[calc(100vh-160px)]">
+    <div className="bg-white p-6 rounded-lg shadow-md h-[calc(100vh-120px)] overflow-y-auto">
       {/* Header with actions */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
@@ -241,7 +241,7 @@ const AssemblyDetailsPage: React.FC = () => {
             Assembly Specifications
           </h3>
           
-          <div className="bg-gray-50 rounded border border-gray-200 p-4 h-[495px] overflow-auto"> {/* Matching height with PDF container */}
+          <div className="bg-gray-50 rounded border border-gray-200 p-4 h-[600px] overflow-y-auto"> 
             {assembly.project && (
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500 mb-1">Project</p>
@@ -302,6 +302,37 @@ const AssemblyDetailsPage: React.FC = () => {
               )}
             </div>
             
+            {/* Barcode Section - Moved to left column */}
+            <div className="mb-4 pb-4 border-b border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-2">Assembly Barcode</p>
+              <div className="bg-white rounded p-2">
+                {barcodeData ? (
+                  <div className="flex flex-col items-center">
+                    <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
+                    <div className="text-xs text-gray-500">{barcodeData.barcode}</div>
+                    <div className="mt-2 flex space-x-2">
+                      <button
+                        onClick={handlePrintBarcode}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <Printer size={14} className="inline mr-1" /> Print
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-2">
+                    <p className="text-gray-500 mb-2">No barcode generated yet</p>
+                    <button
+                      onClick={handleGenerateBarcode}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Generate Barcode
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             {/* Quality Control - Moved inside specs section */}
             {(assembly.quality_control_status || assembly.quality_control_notes) && (
               <div>
@@ -323,24 +354,11 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             )}
             
-            {/* Timestamp Information - at the bottom */}
-            <div className="text-xs text-gray-500 mt-4 pt-3 border-t border-gray-200">
-              <div className="flex items-center gap-2">
-                <Clock size={14} />
-                <span>
-                  {assembly.created_at && `Created: ${formatDate(assembly.created_at)}`}
-                </span>
-                {assembly.updated_at && assembly.updated_at !== assembly.created_at && (
-                  <span className="ml-2">
-                    {`Updated: ${formatDate(assembly.updated_at)}`}
-                  </span>
-                )}
-              </div>
-            </div>
+            {/* Removed timestamp information from here */}
           </div>
         </div>
         
-        {/* Right column - Drawing and Barcode */}
+        {/* Right column - Drawing */}
         <div>
           <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
             <FileText size={18} className="mr-2 text-gray-500" />
@@ -348,7 +366,7 @@ const AssemblyDetailsPage: React.FC = () => {
           </h3>
           
           {drawing ? (
-            <div className="bg-gray-50 rounded border border-gray-200 p-4 mb-6">
+            <div className="bg-gray-50 rounded border border-gray-200 p-4 mb-6 h-[600px] overflow-y-auto">
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <p className="text-gray-700">{drawing.file_name}</p>
@@ -380,14 +398,14 @@ const AssemblyDetailsPage: React.FC = () => {
                 <iframe
                   src={`${getFileUrl(drawing.file_path)}#toolbar=0`}
                   width="100%"
-                  height="400"
+                  height="520"
                   title="Assembly Drawing"
                   className="block"
                 ></iframe>
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center" style={{height: '400px'}}>
+            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center h-[600px]">
               <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
               <Link
                 to={`/dashboard/assemblies/${assembly.id}/edit`}
@@ -397,37 +415,21 @@ const AssemblyDetailsPage: React.FC = () => {
               </Link>
             </div>
           )}
-          
-          {/* Barcode Section */}
-          <div className="mt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Assembly Barcode</h3>
-            <div className="border p-3 rounded bg-gray-50">
-              {barcodeData ? (
-                <div className="flex flex-col items-center">
-                  <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
-                  <div className="text-sm text-gray-500">{barcodeData.barcode}</div>
-                  <div className="mt-2 flex space-x-2">
-                    <button
-                      onClick={handlePrintBarcode}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      <Printer size={14} className="inline mr-1" /> Print
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-3">
-                  <p className="text-gray-500 mb-2">No barcode generated yet</p>
-                  <button
-                    onClick={handleGenerateBarcode}
-                    className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Generate Barcode
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+        </div>
+      </div>
+      
+      {/* Timestamp Information - Moved to bottom of main container */}
+      <div className="text-xs text-gray-500 mt-2 pt-3 border-t border-gray-200">
+        <div className="flex items-center gap-2">
+          <Clock size={14} />
+          <span>
+            {assembly.created_at && `Created: ${formatDate(assembly.created_at)}`}
+          </span>
+          {assembly.updated_at && assembly.updated_at !== assembly.created_at && (
+            <span className="ml-2">
+              {`Updated: ${formatDate(assembly.updated_at)}`}
+            </span>
+          )}
         </div>
       </div>
       

@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Home,
-  Users,
   Calendar,
   BarChart2,
   Settings,
@@ -456,15 +455,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {/* Second section items */}
             <div className="mb-6">
               <div>
-                <NavItem
-                  icon={<Users size={24} />}
-                  label="Team"
-                  to="/dashboard/team"
-                  expanded={sidebarExpanded}
-                  id="users"
-                  hoveredItem={hoveredItem}
-                  setHoveredItem={setHoveredItem}
-                />
                 <NavItem
                   icon={<Calendar size={24} />}
                   label="Calendar"

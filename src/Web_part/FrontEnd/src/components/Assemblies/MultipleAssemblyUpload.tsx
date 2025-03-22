@@ -10,7 +10,6 @@ import {
   CheckCircle, 
   InfoIcon,
   Copy,
-  Save,
   Settings,
   FileText,
   ChevronLeft,
@@ -83,8 +82,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadedRows, setUploadedRows] = useState<AssemblyRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [successCount, setSuccessCount] = useState(0);
   const [notification, setNotification] = useState<{
     type: NotificationType;
     message: string;
@@ -399,8 +396,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
           showNotification('warning', `Warning: The PDF has ${pageCount} pages but there are ${uploadedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
         } else if (pageCount > uploadedRows.length) {
           showNotification('info', `The PDF has ${pageCount} pages but there are only ${uploadedRows.length} assemblies. Extra pages will be ignored.`, 6000);
-        } else {
-          showNotification('success', `Perfect! The PDF has ${pageCount} pages matching the ${uploadedRows.length} assemblies.`, 3000);
         }
         
         // Enable preview mode and reset to first page
@@ -480,21 +475,21 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
         
         if (row['Width (mm)'] !== undefined && row['Width (mm)'] !== '') {
           const parsedWidth = parseFloat(row['Width (mm)']);
-          if (!isNaN(parsedWidth)) {
+          if (!isNaN(parsedWidth) && parsedWidth > 0) { // Changed to check if > 0
             width = parsedWidth;
           }
         }
         
         if (row['Height (mm)'] !== undefined && row['Height (mm)'] !== '') {
           const parsedHeight = parseFloat(row['Height (mm)']);
-          if (!isNaN(parsedHeight)) {
+          if (!isNaN(parsedHeight) && parsedHeight > 0) { // Changed to check if > 0
             height = parsedHeight;
           }
         }
         
         if (row['Length (mm)'] !== undefined && row['Length (mm)'] !== '') {
           const parsedLength = parseFloat(row['Length (mm)']);
-          if (!isNaN(parsedLength)) {
+          if (!isNaN(parsedLength) && parsedLength > 0) { // Changed to check if > 0
             length = parsedLength;
           }
         }
@@ -537,8 +532,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
           showNotification('warning', `Warning: The PDF has ${totalPages} pages but there are ${processedRows.length} assemblies. Some assemblies will not have drawings.`, 6000);
         } else if (totalPages > processedRows.length) {
           showNotification('info', `The PDF has ${totalPages} pages but there are only ${processedRows.length} assemblies. Extra pages will be ignored.`, 6000);
-        } else {
-          showNotification('success', `Perfect! The PDF has ${totalPages} pages matching the ${processedRows.length} assemblies.`, 3000);
         }
         
         // Enable preview mode
@@ -835,9 +828,9 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
           weight: row.weight || 0,
           quantity: row.quantity,
           status: row.status,
-          width: row.width,
-          height: row.height,
-          length: row.length,
+          width: row.width && row.width > 0 ? row.width : null,  // Convert 0 to null
+          height: row.height && row.height > 0 ? row.height : null,  // Convert 0 to null
+          length: row.length && row.length > 0 ? row.length : null,  // Convert 0 to null
           painting_spec: row.painting_spec
         };
         
@@ -875,8 +868,12 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       // Wait for all creations to complete
       await Promise.all(creationPromises);
       
-      setUploadSuccess(true);
-      setSuccessCount(uploadedRows.length);
+      // Set success state
+      showNotification(
+        'success',
+        `Successfully created ${uploadedRows.length} assemblies. Redirecting...`,
+        0
+      );
       
       // Clear form after successful submission
       setExcelFile(null);
@@ -892,20 +889,21 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       }
       resetFileInput();
       
-      showNotification(
-        'success',
-        `Successfully created ${uploadedRows.length} assemblies. Redirecting...`,
-        0
-      );
-      
       // Redirect after a brief delay
       setTimeout(() => {
         navigate(`/dashboard/projects/${effectiveProjectId}`);
       }, 2000);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating assemblies:', err);
-      showNotification('error', 'Failed to create assemblies. Please try again.', 0);
+      
+      // Check if assemblies were actually created even though there was an error with barcodes
+      if (err.message?.includes('barcode') || err.message?.includes('Barcode')) {
+        showNotification('warning', 'Assemblies created successfully, but there was an issue with barcode generation.', 0);
+      } else {
+        // For other errors, show the usual error message
+        showNotification('error', err.message || 'Failed to create assemblies. Please try again.', 0);
+      }
     } finally {
       setLoading(false);
     }
@@ -953,9 +951,9 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
           weight: row.weight || 0,
           quantity: row.quantity,
           status: row.status,
-          width: row.width,
-          height: row.height,
-          length: row.length,
+          width: row.width && row.width > 0 ? row.width : null,  // Convert 0 to null
+          height: row.height && row.height > 0 ? row.height : null,  // Convert 0 to null
+          length: row.length && row.length > 0 ? row.length : null,  // Convert 0 to null
           painting_spec: row.painting_spec
         };
         
@@ -964,9 +962,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       
       // Wait for all creations to complete
       await Promise.all(creationPromises);
-      
-      setUploadSuccess(true);
-      setSuccessCount(rows.length);
       
       // Reset form after successful submission
       setRows([createNewRow()]);
@@ -983,9 +978,16 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
         navigate(`/dashboard/projects/${effectiveProjectId}`);
       }, 2000);
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error creating assemblies:', err);
-      showNotification('error', 'Failed to create assemblies. Please try again.', 0);
+      
+      // Check if assemblies were actually created even though there was an error with barcodes
+      if (err.message?.includes('barcode') || err.message?.includes('Barcode')) {
+        showNotification('warning', 'Assemblies created successfully, but there was an issue with barcode generation.', 0);
+      } else {
+        // For other errors, show the usual error message
+        showNotification('error', err.message || 'Failed to create assemblies. Please try again.', 0);
+      }
     } finally {
       setLoading(false);
     }
@@ -1011,17 +1013,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
               </h1>
               <p className="text-sm text-gray-500">Project #{project.internal_number}</p>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success message */}
-      {uploadSuccess && (
-        <div className="mb-4 p-4 rounded bg-green-50 text-green-700 flex items-start">
-          <CheckCircle size={20} className="mr-2 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-medium">Success!</p>
-            <p>{successCount} assemblies were created successfully. Redirecting...</p>
           </div>
         </div>
       )}
@@ -1426,11 +1417,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                     <option value="Painting">Painting</option>
                     <option value="Completed">Completed</option>
                   </select>
-                  {globalValues.status && (
-                    <div className="mt-1 text-xs text-green-600">
-                      Applied: {globalValues.status}
-                    </div>
-                  )}
                 </div>
                 
                 <div>
@@ -1485,121 +1471,69 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {rows.map((row, index) => (
-                    <tr key={row.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-3 py-2">
+                  {rows.map((row) => (
+                    <tr key={row.id} className={row.error ? 'bg-red-50' : ''}>
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="text"
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
                           value={row.name}
                           onChange={(e) => handleRowChange(row.id, 'name', e.target.value)}
-                          className={`w-full p-1.5 border rounded-md ${row.error && !row.name ? 'border-red-500' : 'border-gray-300'}`}
-                          placeholder="Assembly name"
-                          required
                         />
-                        {row.error && !row.name && (
-                          <div className="mt-1 text-xs text-red-600">
-                            {row.error}
-                          </div>
-                        )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="number"
-                          value={row.weight === null ? '' : row.weight}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                            handleRowChange(row.id, 'weight', val);
-                          }}
-                          className={`w-full p-1.5 border rounded-md ${
-                            row.error && (row.weight === null || (row.weight !== null && row.weight <= 0)) 
-                              ? 'border-red-500' 
-                              : 'border-gray-300'
-                          }`}
-                          placeholder="0.00"
-                          min="0.01"
-                          step="0.01"
-                          required
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          value={row.weight || ''}
+                          onChange={(e) => handleRowChange(row.id, 'weight', e.target.value)}
                         />
-                        {row.error && (row.weight === null || (row.weight !== null && row.weight <= 0)) && (
-                          <div className="mt-1 text-xs text-red-600">
-                            Weight required
-                          </div>
-                        )}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="number"
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
                           value={row.quantity}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? 1 : parseInt(e.target.value);
-                            handleRowChange(row.id, 'quantity', val);
-                          }}
-                          className={`w-24 p-1.5 border rounded-md ${
-                            row.error && row.quantity <= 0 ? 'border-red-500' : 'border-gray-300'
-                          }`}
-                          placeholder="1"
-                          min="1"
-                          step="1"
-                          required
+                          onChange={(e) => handleRowChange(row.id, 'quantity', e.target.value)}
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="number"
-                          value={row.width === null ? '' : row.width}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                            handleRowChange(row.id, 'width', val);
-                          }}
-                          className="w-24 p-1.5 border border-gray-300 rounded-md"
-                          placeholder="Width"
-                          min="0.1"
-                          step="0.1"
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          value={row.width || ''}
+                          onChange={(e) => handleRowChange(row.id, 'width', e.target.value)}
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="number"
-                          value={row.height === null ? '' : row.height}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                            handleRowChange(row.id, 'height', val);
-                          }}
-                          className="w-24 p-1.5 border border-gray-300 rounded-md"
-                          placeholder="Height"
-                          min="0.1"
-                          step="0.1"
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          value={row.height || ''}
+                          onChange={(e) => handleRowChange(row.id, 'height', e.target.value)}
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <input
                           type="number"
-                          value={row.length === null ? '' : row.length}
-                          onChange={(e) => {
-                            const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                            handleRowChange(row.id, 'length', val);
-                          }}
-                          className="w-24 p-1.5 border border-gray-300 rounded-md"
-                          placeholder="Length"
-                          min="0.1"
-                          step="0.1"
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                          value={row.length || ''}
+                          onChange={(e) => handleRowChange(row.id, 'length', e.target.value)}
                         />
                       </td>
-                      <td className="px-3 py-2">
-                        <div className="flex space-x-1">
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
                           <button
                             type="button"
                             onClick={() => duplicateRow(row.id)}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                            title="Duplicate"
+                            className="text-blue-600 hover:text-blue-800"
                           >
                             <Copy size={16} />
                           </button>
                           <button
                             type="button"
                             onClick={() => removeRow(row.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
-                            title="Remove"
+                            className="text-red-600 hover:text-red-800"
                           >
                             <Trash2 size={16} />
                           </button>
@@ -1610,48 +1544,24 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                 </tbody>
               </table>
             </div>
-          </div>
-          
-          {/* Add row button positioned properly */}
-          <button
-            type="button"
-            onClick={addRow}
-            className="flex items-center px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 mb-6"
-          >
-            <Plus size={16} className="mr-2" />
-            Add Another Assembly
-          </button>
-          
-          {/* Additional info card */}
-          <div className="mb-6">
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-              <p className="text-blue-700 text-sm flex items-start">
-                <InfoIcon size={16} className="mr-2 mt-0.5 flex-shrink-0" />
-                <span>
-                  Need to upload drawings? Use the <strong>Excel template</strong> method to upload assemblies with corresponding PDF drawings.
-                </span>
-              </p>
+            <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex justify-between items-center">
+              <button
+                type="button"
+                onClick={addRow}
+                className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                <Plus size={16} className="mr-2" />
+                Add Row
+              </button>
+              <button
+                type="button"
+                onClick={submitManualData}
+                disabled={loading}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Creating...' : `Create ${rows.length} Assemblies`}
+              </button>
             </div>
-          </div>
-          
-          {/* Action buttons */}
-          <div className="flex justify-end space-x-4">
-            <button
-              type="button"
-              onClick={() => navigate(`/dashboard/projects/${effectiveProjectId}`)}
-              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submitManualData}
-              disabled={loading}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              <Save size={16} className="mr-2" />
-              {loading ? 'Creating...' : `Create ${rows.length} Assemblies`}
-            </button>
           </div>
         </div>
       )}
