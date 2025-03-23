@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown } from 'lucide-react';
 import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
-import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
+import { formatWeight, formatDate, formatDimension, naturalSort } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
 import { getDefaultAssemblyColumns } from '../../lib/preferencesApi';
@@ -99,6 +99,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       if (sortColumn === 'start_date' || sortColumn === 'end_date') {
         valueA = valueA ? new Date(valueA).getTime() : 0;
         valueB = valueB ? new Date(valueB).getTime() : 0;
+        return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
       
       // Special handling for numeric values that might be null
@@ -109,12 +110,14 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
         if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
