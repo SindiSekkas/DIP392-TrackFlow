@@ -1,13 +1,17 @@
-// src/components/Projects/ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Settings, Barcode } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown } from 'lucide-react';
 import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
 import { getDefaultAssemblyColumns } from '../../lib/preferencesApi';
 import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
+
+// Define types for sorting
+type SortColumn = 'name' | 'weight' | 'quantity' | 'status' | 'width' | 'height' | 'length' 
+  | 'painting_spec' | 'start_date' | 'end_date' | 'quality_control_status';
+type SortDirection = 'asc' | 'desc';
 
 interface ProjectAssembliesProps {
   projectId: string;
@@ -24,6 +28,10 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   // Add state for barcode printing
   const [showPrintView, setShowPrintView] = useState(false);
   const [selectedBarcodes, setSelectedBarcodes] = useState<any[]>([]);
+  
+  // Add sorting state
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // Get column preferences from context
   const { assemblyColumns, saveAssemblyColumns } = useColumnSettings();
@@ -68,6 +76,71 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       fetchAssemblies();
     }
   }, [projectId]);
+
+  // Sort handling function
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // If already sorting by this column, toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Otherwise, sort by this column in ascending order
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sorted assemblies
+  const getSortedAssemblies = (): Assembly[] => {
+    return [...assemblies].sort((a, b) => {
+      let valueA: any = a[sortColumn];
+      let valueB: any = b[sortColumn];
+      
+      // Special handling for dates
+      if (sortColumn === 'start_date' || sortColumn === 'end_date') {
+        valueA = valueA ? new Date(valueA).getTime() : 0;
+        valueB = valueB ? new Date(valueB).getTime() : 0;
+      }
+      
+      // Special handling for numeric values that might be null
+      if ((sortColumn === 'width' || sortColumn === 'height' || sortColumn === 'length') && 
+          (valueA === null || valueB === null)) {
+        if (valueA === null && valueB === null) return 0;
+        if (valueA === null) return sortDirection === 'asc' ? 1 : -1;
+        if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
+      }
+      
+      // Case insensitive comparison for strings
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        valueA = valueA.toLowerCase();
+        valueB = valueB.toLowerCase();
+      }
+      
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  // Render column header with sort indicators
+  const renderColumnHeader = (column: any) => {
+    const id = column.id as SortColumn;
+    return (
+      <th 
+        key={id}
+        className="text-left p-3 cursor-pointer hover:bg-gray-200"
+        onClick={() => handleSort(id)}
+      >
+        <div className="flex items-center justify-between">
+          <span className="select-none">{column.label}</span>
+          <span className="w-4 inline-block">
+            {sortColumn === id && (
+              sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // Delete an assembly
   const handleDeleteAssembly = async (assemblyId: string) => {
@@ -254,17 +327,15 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
           <table className="min-w-full rounded-lg overflow-hidden border border-gray-200">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
-                {/* Dynamic column headers based on preferences */}
-                {visibleColumns.map(column => (
-                  <th key={column.id} className="text-left p-3">{column.label}</th>
-                ))}
+                {/* Dynamic column headers based on preferences - now with sorting */}
+                {visibleColumns.map(column => renderColumnHeader(column))}
                 
                 {/* Always include actions column */}
                 <th className="text-center p-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {assemblies.map((assembly) => (
+              {getSortedAssemblies().map((assembly) => (
                 <tr key={assembly.id} className="hover:bg-gray-50">
                   {/* Dynamic columns based on preferences */}
                   {visibleColumns.map(column => {

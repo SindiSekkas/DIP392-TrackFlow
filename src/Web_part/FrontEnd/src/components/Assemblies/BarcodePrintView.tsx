@@ -112,10 +112,10 @@ const BarcodePrintView: React.FC<BarcodePrintViewProps> = ({ barcodes, onClose }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm bg-black/30">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold">Print Barcodes</h3>
           <button 
             onClick={onClose}
@@ -126,7 +126,7 @@ const BarcodePrintView: React.FC<BarcodePrintViewProps> = ({ barcodes, onClose }
         </div>
         
         {/* Print controls */}
-        <div className="p-4 bg-gray-50 border-b">
+        <div className="p-4 bg-gray-50 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <div>
               <span className="text-gray-700">
