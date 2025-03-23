@@ -301,9 +301,9 @@ const ProjectsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 text-gray-700">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+          <table className="min-w-full">
+            <thead className="bg-gray-100 text-gray-700 sticky top-0 z-10">
               <tr>
                 {/* Dynamic column headers based on visible columns */}
                 {visibleColumns.map(column => renderColumnHeader(column))}
