@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import Layout from '../../components/Layout';
 import { supabase } from '../../lib/supabase';
-import { formatDate } from '../../utils/formatters';
+import { formatDate, naturalSort } from '../../utils/formatters';
 
 // Interface for NFC Card
 interface NFCCard {
@@ -233,17 +233,20 @@ const NFCCardManagement: React.FC = () => {
       } else if (sortColumn === 'last_used') {
         valueA = a.last_used ? new Date(a.last_used).getTime() : 0;
         valueB = b.last_used ? new Date(b.last_used).getTime() : 0;
+        return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       } else {
         valueA = a[sortColumn];
         valueB = b[sortColumn];
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For booleans, numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;

@@ -18,7 +18,7 @@ import {
   Barcode
 } from 'lucide-react';
 import { Project, Assembly, projectsApi, assembliesApi } from '../../lib/projectsApi';
-import { formatDate, formatWeight, formatDimension } from '../../utils/formatters';
+import { formatDate, formatWeight, formatDimension, naturalSort } from '../../utils/formatters';
 import { ColumnPreference, getDefaultAssemblyColumns } from '../../lib/preferencesApi';
 import ColumnSettings from '../../components/ColumnSettings';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
@@ -167,6 +167,7 @@ const AssembliesPage: React.FC = () => {
       if (sortColumn === 'start_date' || sortColumn === 'end_date') {
         valueA = valueA ? new Date(valueA).getTime() : 0;
         valueB = valueB ? new Date(valueB).getTime() : 0;
+        return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
       
       // Special handling for numeric values that might be null
@@ -177,12 +178,14 @@ const AssembliesPage: React.FC = () => {
         if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;

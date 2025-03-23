@@ -7,6 +7,7 @@ import { userApi } from '../lib/apiClient';
 import { validateInput, sanitizeEmail, sanitizeText } from '../utils/sanitization';
 import { generateRandomPassword } from '../utils/passwordUtils';
 import { X, Check, AlertCircle, UserPlus, Key, ArrowUp, ArrowDown } from 'lucide-react';
+import { naturalSort } from '../utils/formatters';
 
 // Utility function for capitalizing the first letter of a string
 const capitalizeFirstLetter = (string: string) => {
@@ -303,12 +304,21 @@ const UserManagementPage: React.FC = () => {
         valueB = valueB || '';
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // Handle boolean values properly
+      if (typeof valueA === 'boolean' && typeof valueB === 'boolean') {
+        return sortDirection === 'asc' 
+          ? (valueA === valueB ? 0 : valueA ? 1 : -1)
+          : (valueA === valueB ? 0 : valueA ? -1 : 1);
+      }
+      
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
