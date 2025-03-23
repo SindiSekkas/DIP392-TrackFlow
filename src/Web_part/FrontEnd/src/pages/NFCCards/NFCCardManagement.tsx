@@ -40,6 +40,10 @@ interface UserData {
   full_name: string;
   email?: string;
   role: string;
+  worker_type_id?: string;
+  worker_types?: {
+    type_name: string;
+  } | null;
 }
 
 // Define types for sorting
@@ -133,22 +137,66 @@ const NFCCardManagement: React.FC = () => {
   // Function to fetch users for the dropdown
   const fetchUsers = async () => {
     try {
-      // Get all user profiles
+      // Get all user profiles with worker types included for worker roles
       const { data: profiles, error } = await supabase
         .from('user_profiles')
-        .select('auth_user_id, full_name, role')
+        .select(`
+          auth_user_id, 
+          full_name, 
+          role,
+          worker_type_id,
+          worker_types(type_name)
+        `)
         .order('full_name');
       
       if (error) throw error;
       
-      // Set users without trying to fetch emails
-      setUsers(profiles.map(profile => ({
-        ...profile,
-        email: '' // Skip email fetching for now
-      })));
+      // Manually convert each raw profile to a UserData object
+      const processedProfiles: UserData[] = profiles.map(profile => {
+        // Extract worker_types safely
+        let workerType: { type_name: string } | null = null;
+        
+        if (profile.worker_types) {
+          if (Array.isArray(profile.worker_types) && profile.worker_types.length > 0) {
+            workerType = {
+              type_name: profile.worker_types[0].type_name
+            };
+          } else if (typeof profile.worker_types === 'object') {
+            workerType = {
+              type_name: (profile.worker_types as any).type_name
+            };
+          }
+        }
+
+        return {
+          auth_user_id: profile.auth_user_id,
+          full_name: profile.full_name,
+          role: profile.role,
+          worker_type_id: profile.worker_type_id,
+          worker_types: workerType
+        };
+      });
+      
+      setUsers(processedProfiles);
     } catch (err: any) {
       console.error('Error fetching users:', err);
     }
+  };
+  
+  // Helper function to format role display
+  const formatRoleDisplay = (user: UserData): string => {
+    if (user.role === 'admin') {
+      return 'Admin';
+    } else if (user.role === 'manager') {
+      return 'Manager';
+    } else if (user.role === 'worker' && user.worker_types?.type_name) {
+      // Capitalize first letter of worker type
+      const workerType = user.worker_types.type_name;
+      return workerType.charAt(0).toUpperCase() + workerType.slice(1);
+    }
+    
+    // Fallback to capitalize the role if nothing else matches
+    return user.role.charAt(0).toUpperCase() + user.role.slice(1);
   };
 
   // Filter cards based on search term
@@ -522,7 +570,7 @@ const NFCCardManagement: React.FC = () => {
                       <option value="">Select a user</option>
                       {users.map(user => (
                         <option key={user.auth_user_id} value={user.auth_user_id}>
-                          {user.full_name} ({user.role})
+                          {user.full_name} ({formatRoleDisplay(user)})
                         </option>
                       ))}
                     </select>
