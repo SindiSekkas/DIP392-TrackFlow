@@ -1,12 +1,13 @@
 // src/components/Projects/ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2, Settings, ArrowUp, ArrowDown, Barcode } from 'lucide-react';
 import { Assembly, assembliesApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
 import { getDefaultAssemblyColumns } from '../../lib/preferencesApi';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
 
 interface ProjectAssembliesProps {
   projectId: string;
@@ -21,6 +22,11 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   const [sortField, setSortField] = useState<string>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
+  // Add state for barcode printing
+  const [showPrintView, setShowPrintView] = useState(false);
+  const [selectedBarcodes, setSelectedBarcodes] = useState<any[]>([]);
+
+    
   // Get column preferences from context
   const { assemblyColumns, saveAssemblyColumns } = useColumnSettings();
   
@@ -125,6 +131,36 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       ? Number(fieldA) - Number(fieldB)
       : Number(fieldB) - Number(fieldA);
   });
+
+  const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string) => {
+    try {
+      setLoading(true);
+      
+      // Get the barcode for this assembly
+      const barcode = await assembliesApi.getAssemblyBarcode(assemblyId);
+      
+      if (barcode) {
+        // Prepare barcode data for print view
+        const barcodeData = [{
+          id: barcode.id,
+          barcode: barcode.barcode,
+          assemblyName: assemblyName,
+          projectName: 'Project Name' // Get from context
+        }];
+        
+        // Show print view
+        setSelectedBarcodes(barcodeData);
+        setShowPrintView(true);
+      } else {
+        setError("No barcode found for this assembly");
+      }
+    } catch (err) {
+      console.error('Error preparing barcode for printing:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get barcode');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="mt-8">
@@ -293,6 +329,13 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                       >
                         <Trash2 size={16} className="text-red-600" />
                       </button>
+                      <button
+                        onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name)}
+                        title="Print Barcode"
+                        className="p-1 rounded-full hover:bg-gray-200"
+                      >
+                        <Barcode size={16} className="text-green-600" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -300,6 +343,14 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
             </tbody>
           </table>
         </div>
+      )}
+      
+      {/* Barcode Print View */}
+      {showPrintView && (
+        <BarcodePrintView
+          barcodes={selectedBarcodes}
+          onClose={() => setShowPrintView(false)}
+        />
       )}
     </div>
   );
