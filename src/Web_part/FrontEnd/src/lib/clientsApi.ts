@@ -1,14 +1,14 @@
 // src/lib/clientsApi.ts
 import { supabase } from './supabase';
 
-// Client interface
+// Updated Client interface with proper null handling
 export interface Client {
   id?: string;
   company_name: string;
   registration_code: string;
-  vat_code?: string;
+  vat_code?: string | null;  // Modified to allow null values
   contact_person?: string;
-  email?: string;
+  email?: string | null;     // Also modified to allow null
   phone?: string;
   address?: string;
   notes?: string;
@@ -43,9 +43,16 @@ export const clientsApi = {
   
   // Create client
   createClient: async (client: Client): Promise<Client> => {
+    // Clean empty strings to null for unique fields
+    const cleanedClient = {
+      ...client,
+      vat_code: client.vat_code?.trim() || null,
+      email: client.email?.trim() || null
+    };
+
     const { data, error } = await supabase
       .from('clients')
-      .insert(client)
+      .insert(cleanedClient)
       .select()
       .single();
       
@@ -55,9 +62,16 @@ export const clientsApi = {
   
   // Update client
   updateClient: async (id: string, client: Partial<Client>): Promise<Client> => {
+    // Clean empty strings to null for unique fields
+    const cleanedClient = {
+      ...client,
+      vat_code: client.vat_code?.trim() || null,
+      email: client.email?.trim() || null
+    };
+
     const { data, error } = await supabase
       .from('clients')
-      .update(client)
+      .update(cleanedClient)
       .eq('id', id)
       .select()
       .single();

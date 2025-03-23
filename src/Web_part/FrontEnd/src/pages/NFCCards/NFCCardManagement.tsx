@@ -486,7 +486,7 @@ const NFCCardManagement: React.FC = () => {
 
   return (
     <Layout>
-      <div className="bg-white p-6 rounded-lg shadow-md w-full min-h-[calc(100vh-160px)]">
+      <div className="bg-white p-6 rounded-lg shadow-md">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-800 flex items-center">
             <CreditCard size={24} className="mr-2 text-blue-600" />
@@ -670,8 +670,8 @@ const NFCCardManagement: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full rounded-lg overflow-hidden">
+          <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+            <table className="min-w-full">
               <thead className="bg-gray-100 text-gray-700">
                 <tr>
                   {renderColumnHeader('Card ID', 'card_id')}

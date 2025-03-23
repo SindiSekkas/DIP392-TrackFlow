@@ -269,11 +269,11 @@ const UserManagementPage: React.FC = () => {
       console.error('Error fetching worker types:', err);
       // Fallback to hardcoded types in case of error
       const fallbackTypes = [
-        { id: 'engineer', type_name: 'Engineer' },
-        { id: 'welder', type_name: 'Welder' },
-        { id: 'assembler', type_name: 'Assembler' },
-        { id: 'painter', type_name: 'Painter' },
-        { id: 'logistics', type_name: 'Logistics' }
+        { id: 'engineer', type_name: 'engineer' }, // Changed to lowercase to match DB
+        { id: 'welder', type_name: 'welder' },
+        { id: 'assembler', type_name: 'assembler' },
+        { id: 'painter', type_name: 'painter' },
+        { id: 'logistics', type_name: 'logistics' }
       ];
       setWorkerTypes(fallbackTypes);
     }
@@ -656,7 +656,7 @@ const UserManagementPage: React.FC = () => {
                           required
                         >
                           {workerTypes.map(type => (
-                            <option key={type.id} value={type.id}>
+                            <option key={type.id} value={type.type_name}>
                               {capitalizeFirstLetter(type.type_name)}
                             </option>
                           ))}
@@ -724,8 +724,8 @@ const UserManagementPage: React.FC = () => {
         )}
 
         {/* Users table */}
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white rounded-lg overflow-hidden">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+          <table className="min-w-full">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 <th 

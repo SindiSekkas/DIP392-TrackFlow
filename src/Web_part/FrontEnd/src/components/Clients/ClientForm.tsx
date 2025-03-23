@@ -58,11 +58,18 @@ const ClientForm: React.FC<ClientFormProps> = ({
         return;
       }
       
+      // Clean up empty values before submitting
+      const cleanedData = {
+        ...formData,
+        // Convert empty strings to null for unique fields
+        vat_code: formData.vat_code?.trim() || null
+      };
+      
       // Create or update client
       if (isEditing && initialData?.id) {
-        await clientsApi.updateClient(initialData.id, formData);
+        await clientsApi.updateClient(initialData.id, cleanedData);
       } else {
-        await clientsApi.createClient(formData);
+        await clientsApi.createClient(cleanedData);
       }
       
       // Navigate back to clients list

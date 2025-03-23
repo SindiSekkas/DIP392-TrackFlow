@@ -288,8 +288,8 @@ const ClientsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full rounded-lg overflow-hidden">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+          <table className="min-w-full">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 {/* Dynamic column headers based on visible columns */}
