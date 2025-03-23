@@ -1,8 +1,8 @@
 // src/components/Projects/ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Settings, ArrowUp, ArrowDown, Barcode } from 'lucide-react';
-import { Assembly, assembliesApi } from '../../lib/projectsApi';
+import { Plus, Eye, Edit, Trash2, Settings, Barcode } from 'lucide-react';
+import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
@@ -15,18 +15,16 @@ interface ProjectAssembliesProps {
 
 const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   const [assemblies, setAssemblies] = useState<Assembly[]>([]);
+  const [projectName, setProjectName] = useState<string>('Project');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-  const [sortField, setSortField] = useState<string>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Add state for barcode printing
   const [showPrintView, setShowPrintView] = useState(false);
   const [selectedBarcodes, setSelectedBarcodes] = useState<any[]>([]);
-
-    
+  
   // Get column preferences from context
   const { assemblyColumns, saveAssemblyColumns } = useColumnSettings();
   
@@ -50,6 +48,13 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
         setLoading(true);
         const data = await assembliesApi.getAssembliesByProject(projectId);
         setAssemblies(data);
+        
+        // Also fetch project name for barcodes
+        const projectData = await projectsApi.getProject(projectId);
+        if (projectData && projectData.name) {
+          setProjectName(projectData.name);
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching assemblies:', err);
@@ -79,59 +84,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
     }
   };
 
-  // Handle sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Toggle sort direction if clicking the same field
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new sort field and default to ascending
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  // Add this near the top of the component
-  const sortByDate = (dateA: string | null | undefined, dateB: string | null | undefined, direction: 'asc' | 'desc') => {
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return direction === 'asc' ? -1 : 1;
-    if (!dateB) return direction === 'asc' ? 1 : -1;
-    
-    const timeA = new Date(dateA).getTime();
-    const timeB = new Date(dateB).getTime();
-    
-    return direction === 'asc' ? timeA - timeB : timeB - timeA;
-  };
-
-  // Then update the sorting function to handle dates properly
-  const sortedAssemblies = [...assemblies].sort((a, b) => {
-    if (sortField === 'start_date') {
-      return sortByDate(a.start_date as string, b.start_date as string, sortDirection);
-    }
-    if (sortField === 'end_date') {
-      return sortByDate(a.end_date as string, b.end_date as string, sortDirection);
-    }
-    
-    const fieldA = a[sortField as keyof Assembly];
-    const fieldB = b[sortField as keyof Assembly];
-    
-    // Handle null/undefined values
-    if (fieldA === null || fieldA === undefined) return sortDirection === 'asc' ? -1 : 1;
-    if (fieldB === null || fieldB === undefined) return sortDirection === 'asc' ? 1 : -1;
-    
-    // String comparison
-    if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-      return sortDirection === 'asc' 
-        ? fieldA.localeCompare(fieldB)
-        : fieldB.localeCompare(fieldA);
-    }
-    
-    // Number comparison
-    return sortDirection === 'asc'
-      ? Number(fieldA) - Number(fieldB)
-      : Number(fieldB) - Number(fieldA);
-  });
-
+  // Function to handle printing a single barcode
   const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string) => {
     try {
       setLoading(true);
@@ -145,7 +98,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
           id: barcode.id,
           barcode: barcode.barcode,
           assemblyName: assemblyName,
-          projectName: 'Project Name' // Get from context
+          projectName: projectName
         }];
         
         // Show print view
@@ -154,19 +107,92 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       } else {
         setError("No barcode found for this assembly");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error preparing barcode for printing:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get barcode');
+      setError(err.message || 'Failed to get barcode');
     } finally {
       setLoading(false);
     }
-  }
+  };
+
+  // Handle printing all barcodes for assemblies
+  const handlePrintAllBarcodes = async () => {
+    if (assemblies.length === 0) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Prepare to collect all barcode data
+      const allBarcodeData: any[] = [];
+      
+      // Process assemblies in batches to avoid too many concurrent requests
+      const batchSize = 10;
+      const batches = Math.ceil(assemblies.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const batch = assemblies.slice(i * batchSize, (i + 1) * batchSize);
+        
+        // Process each assembly in the batch to get its barcode
+        const batchPromises = batch.map(async (assembly) => {
+          try {
+            // Get existing barcode or generate a new one
+            let barcode = await assembliesApi.getAssemblyBarcode(assembly.id as string);
+            
+            if (!barcode) {
+              // Generate barcode if it doesn't exist
+              barcode = await assembliesApi.generateAssemblyBarcode(assembly.id as string);
+            }
+            
+            return {
+              id: barcode.id,
+              barcode: barcode.barcode,
+              assemblyName: assembly.name,
+              projectName: projectName
+            };
+          } catch (err) {
+            console.error(`Error getting barcode for assembly ${assembly.id}:`, err);
+            return null;
+          }
+        });
+        
+        // Wait for all assemblies in this batch to be processed
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add valid results to the collection
+        allBarcodeData.push(...batchResults.filter(Boolean));
+      }
+      
+      if (allBarcodeData.length === 0) {
+        setError("No barcodes could be generated");
+        return;
+      }
+      
+      // Set barcodes and show print view
+      setSelectedBarcodes(allBarcodeData);
+      setShowPrintView(true);
+      
+    } catch (err: any) {
+      console.error('Error preparing barcodes for printing:', err);
+      setError(err.message || 'Failed to generate barcodes');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-medium text-gray-800">Assemblies</h3>
         <div className="flex gap-2">
+          <button
+            onClick={handlePrintAllBarcodes}
+            disabled={assemblies.length === 0 || loading}
+            className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
+          >
+            <Barcode size={16} className="mr-1" />
+            Barcodes
+          </button>
           <button
             onClick={() => setShowColumnSettings(!showColumnSettings)}
             className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
@@ -226,28 +252,11 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full rounded-lg overflow-hidden border border-gray-200">
-            <thead className="bg-gray-100 text-gray-700 select-none">
+            <thead className="bg-gray-100 text-gray-700">
               <tr>
                 {/* Dynamic column headers based on preferences */}
                 {visibleColumns.map(column => (
-                  <th 
-                    key={column.id} 
-                    className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                    onClick={() => handleSort(column.id)}
-                  >
-                    <div className="flex items-center">
-                      <span>{column.label}</span>
-                      {sortField === column.id && (
-                        <span className="ml-1">
-                          {sortDirection === 'asc' ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+                  <th key={column.id} className="text-left p-3">{column.label}</th>
                 ))}
                 
                 {/* Always include actions column */}
@@ -255,7 +264,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {sortedAssemblies.map((assembly) => (
+              {assemblies.map((assembly) => (
                 <tr key={assembly.id} className="hover:bg-gray-50">
                   {/* Dynamic columns based on preferences */}
                   {visibleColumns.map(column => {
@@ -344,7 +353,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
           </table>
         </div>
       )}
-      
+
       {/* Barcode Print View */}
       {showPrintView && (
         <BarcodePrintView

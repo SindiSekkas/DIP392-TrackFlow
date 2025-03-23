@@ -314,6 +314,72 @@ const AssembliesPage: React.FC = () => {
     }
   }
 
+
+  // Handle printing all barcodes for filtered assemblies
+  const handlePrintAllBarcodes = async () => {
+    if (filteredAssemblies.length === 0) return;
+    
+    try {
+      setAssembliesLoading(true);
+      setError(null);
+      
+      // Prepare to collect all barcode data
+      const allBarcodeData: any[] = [];
+      
+      // Process assemblies in batches to avoid too many concurrent requests
+      const batchSize = 10;
+      const batches = Math.ceil(filteredAssemblies.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const batch = filteredAssemblies.slice(i * batchSize, (i + 1) * batchSize);
+        
+        // Process each assembly in the batch to get its barcode
+        const batchPromises = batch.map(async (assembly) => {
+          try {
+            // Get existing barcode or generate a new one
+            let barcode = await assembliesApi.getAssemblyBarcode(assembly.id as string);
+            
+            if (!barcode) {
+              // Generate barcode if it doesn't exist
+              barcode = await assembliesApi.generateAssemblyBarcode(assembly.id as string);
+            }
+            
+            return {
+              id: barcode.id,
+              barcode: barcode.barcode,
+              assemblyName: assembly.name,
+              projectName: selectedProject?.name || 'Unknown Project'
+            };
+          } catch (err) {
+            console.error(`Error getting barcode for assembly ${assembly.id}:`, err);
+            return null;
+          }
+        });
+        
+        // Wait for all assemblies in this batch to be processed
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add valid results to the collection
+        allBarcodeData.push(...batchResults.filter(Boolean));
+      }
+      
+      if (allBarcodeData.length === 0) {
+        setError("No barcodes could be generated");
+        return;
+      }
+      
+      // Set barcodes and show print view
+      setSelectedBarcodes(allBarcodeData);
+      setShowPrintView(true);
+      
+    } catch (err: any) {
+      console.error('Error preparing barcodes for printing:', err);
+      setError(err.message || 'Failed to generate barcodes');
+    } finally {
+      setAssembliesLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md flex h-[calc(100vh-160px)] overflow-hidden">
       {/* Left sidebar with projects */}
@@ -450,6 +516,16 @@ const AssembliesPage: React.FC = () => {
             >
               <Download size={18} className="mr-2" />
               Export
+            </button>
+            
+            {/* Add Print All Barcodes button here */}
+            <button
+              onClick={handlePrintAllBarcodes}
+              disabled={filteredAssemblies.length === 0 || assembliesLoading}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              <Barcode size={18} className="mr-2" />
+              Barcodes
             </button>
             
             <button
