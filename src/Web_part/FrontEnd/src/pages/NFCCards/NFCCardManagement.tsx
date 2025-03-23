@@ -550,7 +550,7 @@ const NFCCardManagement: React.FC = () => {
                       type="text"
                       value={newCardId}
                       onChange={(e) => setNewCardId(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md"
+                      className="w-full p-2 border border-gray-300 rounded-md h-10"
                       placeholder="Enter card UID"
                       required
                     />
@@ -564,7 +564,7 @@ const NFCCardManagement: React.FC = () => {
                     <select
                       value={newUserId}
                       onChange={(e) => setNewUserId(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md"
+                      className="w-full p-2 border border-gray-300 rounded-md h-10"
                       required
                     >
                       <option value="">Select a user</option>
