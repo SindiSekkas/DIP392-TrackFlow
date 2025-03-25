@@ -1248,13 +1248,13 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                     onChange={handleFileChange}
                     disabled={loading}
                   />
-                  <FileSpreadsheet size={32} className={`mx-auto mb-2 ${dragActive ? "text-blue-600" : "text-blue-500"}`} />
+                  <FileSpreadsheet size={32} className={`mx-auto mb-2 ${dragActive ? "text-green-600" : "text-green-500"}`} />
                   <span className="text-sm font-medium">
                     {excelFile ? (
                       <span className="text-green-600">{excelFile.name}</span>
                     ) : (
                       <span>
-                        <span className="text-blue-600">Click to upload Excel</span> or drag and drop
+                        <span className="text-green-600">Click to upload Excel</span> or drag and drop
                       </span>
                     )}
                   </span>
