@@ -14,13 +14,15 @@ import {
   Settings,
   Download,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Barcode
 } from 'lucide-react';
 import { Project, Assembly, projectsApi, assembliesApi } from '../../lib/projectsApi';
-import { formatDate, formatWeight, formatDimension } from '../../utils/formatters';
+import { formatDate, formatWeight, formatDimension, naturalSort } from '../../utils/formatters';
 import { ColumnPreference, getDefaultAssemblyColumns } from '../../lib/preferencesApi';
 import ColumnSettings from '../../components/ColumnSettings';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
 
 // Define types for sorting
 type SortColumn = 'name' | 'weight' | 'quantity' | 'status' | 'width' | 'height' | 'length' 
@@ -48,6 +50,10 @@ const AssembliesPage: React.FC = () => {
   } = useColumnSettings();
   
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  
+  // State for barcode generation
+  const [showPrintView, setShowPrintView] = useState(false);
+  const [selectedBarcodes, setSelectedBarcodes] = useState<any[]>([]);
   
   // Loading and error states
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -109,22 +115,26 @@ const AssembliesPage: React.FC = () => {
   useEffect(() => {
     if (!selectedProjectId) return;
 
-    const fetchAssemblies = async () => {
-      try {
-        setAssembliesLoading(true);
-        setError(null);
-        const data = await assembliesApi.getAssembliesByProject(selectedProjectId);
-        setAssemblies(data);
-      } catch (err) {
-        console.error('Error fetching assemblies:', err);
-        setError('Failed to load assemblies. Please try again.');
-      } finally {
-        setAssembliesLoading(false);
-      }
-    };
-
     fetchAssemblies();
   }, [selectedProjectId]);
+
+  // Fetch assemblies function for refreshing data
+  const fetchAssemblies = async () => {
+    try {
+      setAssembliesLoading(true);
+      setError(null);
+      
+      if (selectedProjectId) {
+        const data = await assembliesApi.getAssembliesByProject(selectedProjectId);
+        setAssemblies(data);
+      }
+    } catch (err) {
+      console.error('Error fetching assemblies:', err);
+      setError('Failed to load assemblies. Please try again.');
+    } finally {
+      setAssembliesLoading(false);
+    }
+  };
 
   // Filter assemblies based on search term and status filter
   const filteredAssemblies = assemblies.filter(assembly => {
@@ -157,6 +167,7 @@ const AssembliesPage: React.FC = () => {
       if (sortColumn === 'start_date' || sortColumn === 'end_date') {
         valueA = valueA ? new Date(valueA).getTime() : 0;
         valueB = valueB ? new Date(valueB).getTime() : 0;
+        return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
       }
       
       // Special handling for numeric values that might be null
@@ -167,12 +178,14 @@ const AssembliesPage: React.FC = () => {
         if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -271,6 +284,103 @@ const AssembliesPage: React.FC = () => {
         </div>
       </th>
     );
+  };
+
+  // Function to handle printing a single barcode
+  const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string) => {
+    try {
+      setAssembliesLoading(true);
+      
+      // Get the barcode for this assembly
+      const barcode = await assembliesApi.getAssemblyBarcode(assemblyId);
+      
+      if (barcode) {
+        // Prepare barcode data for print view
+        const barcodeData = [{
+          id: barcode.id,
+          barcode: barcode.barcode,
+          assemblyName: assemblyName,
+          projectName: selectedProject?.name || 'Unknown Project'
+        }];
+        
+        // Show print view
+        setSelectedBarcodes(barcodeData);
+        setShowPrintView(true);
+      } else {
+        setError("No barcode found for this assembly");
+      }
+    } catch (err: any) {
+      console.error('Error preparing barcode for printing:', err);
+      setError(err.message || 'Failed to get barcode');
+    } finally {
+      setAssembliesLoading(false);
+    }
+  }
+
+
+  // Handle printing all barcodes for filtered assemblies
+  const handlePrintAllBarcodes = async () => {
+    if (filteredAssemblies.length === 0) return;
+    
+    try {
+      setAssembliesLoading(true);
+      setError(null);
+      
+      // Prepare to collect all barcode data
+      const allBarcodeData: any[] = [];
+      
+      // Process assemblies in batches to avoid too many concurrent requests
+      const batchSize = 10;
+      const batches = Math.ceil(filteredAssemblies.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const batch = filteredAssemblies.slice(i * batchSize, (i + 1) * batchSize);
+        
+        // Process each assembly in the batch to get its barcode
+        const batchPromises = batch.map(async (assembly) => {
+          try {
+            // Get existing barcode or generate a new one
+            let barcode = await assembliesApi.getAssemblyBarcode(assembly.id as string);
+            
+            if (!barcode) {
+              // Generate barcode if it doesn't exist
+              barcode = await assembliesApi.generateAssemblyBarcode(assembly.id as string);
+            }
+            
+            return {
+              id: barcode.id,
+              barcode: barcode.barcode,
+              assemblyName: assembly.name,
+              projectName: selectedProject?.name || 'Unknown Project'
+            };
+          } catch (err) {
+            console.error(`Error getting barcode for assembly ${assembly.id}:`, err);
+            return null;
+          }
+        });
+        
+        // Wait for all assemblies in this batch to be processed
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add valid results to the collection
+        allBarcodeData.push(...batchResults.filter(Boolean));
+      }
+      
+      if (allBarcodeData.length === 0) {
+        setError("No barcodes could be generated");
+        return;
+      }
+      
+      // Set barcodes and show print view
+      setSelectedBarcodes(allBarcodeData);
+      setShowPrintView(true);
+      
+    } catch (err: any) {
+      console.error('Error preparing barcodes for printing:', err);
+      setError(err.message || 'Failed to generate barcodes');
+    } finally {
+      setAssembliesLoading(false);
+    }
   };
 
   return (
@@ -409,6 +519,16 @@ const AssembliesPage: React.FC = () => {
             >
               <Download size={18} className="mr-2" />
               Export
+            </button>
+            
+            {/* Add Print All Barcodes button here */}
+            <button
+              onClick={handlePrintAllBarcodes}
+              disabled={filteredAssemblies.length === 0 || assembliesLoading}
+              className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              <Barcode size={18} className="mr-2" />
+              Barcodes
             </button>
             
             <button
@@ -559,6 +679,13 @@ const AssembliesPage: React.FC = () => {
                         >
                           <Trash2 size={16} className="text-red-600" />
                         </button>
+                        <button
+                          onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name)}
+                          title="Print Barcode"
+                          className="p-1 rounded-full hover:bg-gray-200"
+                        >
+                          <Barcode size={16} className="text-green-600" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -568,6 +695,14 @@ const AssembliesPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Barcode Print View */}
+      {showPrintView && (
+        <BarcodePrintView
+          barcodes={selectedBarcodes}
+          onClose={() => setShowPrintView(false)}
+        />
+      )}
     </div>
   );
 };

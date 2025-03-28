@@ -164,13 +164,16 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
         return;
       }
       
-      // Ensure end date is after start date if both are provided
-      if (formData.start_date && formData.end_date && 
-          new Date(formData.end_date) < new Date(formData.start_date)) {
-        setError('End date must be after start date.');
-        setLoading(false);
-        return;
-      }
+      // Clean data before sending to API
+      const cleanedData = {
+        ...formData,
+        start_date: formData.start_date || null,
+        end_date: formData.end_date || null,
+        // Convert zero values to null for dimensions
+        width: formData.width === 0 ? null : formData.width,
+        height: formData.height === 0 ? null : formData.height,
+        length: formData.length === 0 ? null : formData.length
+      };
       
       // Check for duplicate assembly name within the same project
       const isDuplicate = await checkDuplicateAssemblyName(
@@ -188,20 +191,8 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
       // Create or update assembly
       let assembly;
       if (isEditing && initialData?.id) {
-        // Clean date fields
-        const cleanedData = {
-          ...formData,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null
-        };
         assembly = await assembliesApi.updateAssembly(initialData.id, cleanedData);
       } else {
-        // Clean date fields
-        const cleanedData = {
-          ...formData,
-          start_date: formData.start_date || null,
-          end_date: formData.end_date || null
-        };
         assembly = await assembliesApi.createAssembly(cleanedData);
       }
       

@@ -45,3 +45,39 @@ export const formatDimension = (value?: number): string => {
   if (!value && value !== 0) return '—';
   return `${value.toLocaleString()} mm`;
 };
+
+/**
+ * Performs natural sorting for strings with numbers
+ * Example: "Test1", "Test2", "Test12" will be sorted as "Test1", "Test2", "Test12"
+ */
+export const naturalSort = (a: string, b: string): number => {
+  // Handle null or undefined values to ensure we always return a number
+  if (!a && !b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+
+  const regex = /(\d+)|(\D+)/g;
+  const aMatches = String(a).toLowerCase().match(regex) || [];
+  const bMatches = String(b).toLowerCase().match(regex) || [];
+  
+  for (let i = 0; i < Math.min(aMatches.length, bMatches.length); i++) {
+    const aMatch = aMatches[i];
+    const bMatch = bMatches[i];
+    
+    // If both parts are numeric, compare them as numbers
+    if (/^\d+$/.test(aMatch) && /^\d+$/.test(bMatch)) {
+      const aNum = parseInt(aMatch, 10);
+      const bNum = parseInt(bMatch, 10);
+      if (aNum !== bNum) {
+        return aNum - bNum;
+      }
+    } 
+    // Otherwise, compare them as strings
+    else if (aMatch !== bMatch) {
+      return aMatch < bMatch ? -1 : 1;
+    }
+  }
+  
+  // If we get here, one string is a prefix of the other
+  return aMatches.length - bMatches.length;
+};

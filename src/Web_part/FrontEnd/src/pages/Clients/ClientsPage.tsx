@@ -16,6 +16,7 @@ import { Client, clientsApi } from '../../lib/clientsApi';
 import { ColumnPreference } from '../../lib/preferencesApi';
 import ColumnSettings from '../../components/ColumnSettings';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
+import { naturalSort } from '../../utils/formatters';
 
 // Define types for sorting
 type SortColumn = 'company_name' | 'registration_code' | 'vat_code' | 'contact_person' | 'email';
@@ -154,12 +155,14 @@ const ClientsPage: React.FC = () => {
       valueA = valueA || '';
       valueB = valueB || '';
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -288,8 +291,8 @@ const ClientsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full rounded-lg overflow-hidden">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+          <table className="min-w-full">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 {/* Dynamic column headers based on visible columns */}

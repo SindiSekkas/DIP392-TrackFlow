@@ -1,7 +1,6 @@
 // src/lib/projectsApi.ts
 import { supabase } from './supabase';
 
-
 // Types
 export interface Project {
   id?: string;
@@ -269,6 +268,7 @@ export const assembliesApi = {
   
   // Create assembly
   createAssembly: async (assembly: Assembly): Promise<Assembly> => {
+    // Create the assembly first
     const { data, error } = await supabase
       .from('assemblies')
       .insert(assembly)
@@ -276,6 +276,23 @@ export const assembliesApi = {
       .single();
       
     if (error) throw error;
+    
+    // Attempt to generate a barcode but don't let it affect the success of assembly creation
+    if (data.id) {
+      try {
+        await supabase
+          .from('assembly_barcodes')
+          .insert({
+            assembly_id: data.id,
+            barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
+          });
+        // Barcode created successfully
+      } catch (barcodeError) {
+        console.error('Barcode generation failed, but assembly was created:', barcodeError);
+        // Intentionally not throwing error, as the assembly was created successfully
+      }
+    }
+    
     return data as Assembly;
   },
   
@@ -393,5 +410,32 @@ export const assembliesApi = {
       .eq('id', drawingId);
     
     if (deleteError) throw deleteError;
+  },
+
+  // Get barcode for an assembly
+  getAssemblyBarcode: async (assemblyId: string): Promise<{id: string, barcode: string} | null> => {
+    const { data, error } = await supabase
+      .from('assembly_barcodes')
+      .select('id, barcode')
+      .eq('assembly_id', assemblyId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Generate barcode for an assembly
+  generateAssemblyBarcode: async (assemblyId: string): Promise<{id: string, barcode: string}> => {
+    const { data, error } = await supabase
+      .from('assembly_barcodes')
+      .insert({
+        assembly_id: assemblyId,
+        barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
   }
 };

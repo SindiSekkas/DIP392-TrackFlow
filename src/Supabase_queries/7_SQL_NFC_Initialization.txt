@@ -1,0 +1,28 @@
+-- Add table for NFC cards
+CREATE TABLE nfc_cards (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    card_id TEXT NOT NULL UNIQUE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    is_active BOOLEAN DEFAULT true,
+    last_used TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add table for assembly barcodes
+CREATE TABLE assembly_barcodes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id UUID NOT NULL REFERENCES assemblies(id) ON DELETE CASCADE,
+    barcode TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add table for status updates history
+CREATE TABLE assembly_status_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id UUID NOT NULL REFERENCES assemblies(id) ON DELETE CASCADE,
+    previous_status TEXT,
+    new_status TEXT NOT NULL,
+    updated_by UUID NOT NULL REFERENCES auth.users(id),
+    device_info JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

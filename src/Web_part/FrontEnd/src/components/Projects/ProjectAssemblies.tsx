@@ -1,12 +1,17 @@
-// src/components/Projects/ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Eye, Edit, Trash2, Settings, ArrowUp, ArrowDown } from 'lucide-react';
-import { Assembly, assembliesApi } from '../../lib/projectsApi';
-import { formatWeight, formatDate, formatDimension } from '../../utils/formatters';
+import { Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown } from 'lucide-react';
+import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
+import { formatWeight, formatDate, formatDimension, naturalSort } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
 import { getDefaultAssemblyColumns } from '../../lib/preferencesApi';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
+
+// Define types for sorting
+type SortColumn = 'name' | 'weight' | 'quantity' | 'status' | 'width' | 'height' | 'length' 
+  | 'painting_spec' | 'start_date' | 'end_date' | 'quality_control_status';
+type SortDirection = 'asc' | 'desc';
 
 interface ProjectAssembliesProps {
   projectId: string;
@@ -14,12 +19,19 @@ interface ProjectAssembliesProps {
 
 const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   const [assemblies, setAssemblies] = useState<Assembly[]>([]);
+  const [projectName, setProjectName] = useState<string>('Project');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [showColumnSettings, setShowColumnSettings] = useState(false);
-  const [sortField, setSortField] = useState<string>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Add state for barcode printing
+  const [showPrintView, setShowPrintView] = useState(false);
+  const [selectedBarcodes, setSelectedBarcodes] = useState<any[]>([]);
+  
+  // Add sorting state
+  const [sortColumn, setSortColumn] = useState<SortColumn>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // Get column preferences from context
   const { assemblyColumns, saveAssemblyColumns } = useColumnSettings();
@@ -44,6 +56,13 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
         setLoading(true);
         const data = await assembliesApi.getAssembliesByProject(projectId);
         setAssemblies(data);
+        
+        // Also fetch project name for barcodes
+        const projectData = await projectsApi.getProject(projectId);
+        if (projectData && projectData.name) {
+          setProjectName(projectData.name);
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching assemblies:', err);
@@ -57,6 +76,74 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       fetchAssemblies();
     }
   }, [projectId]);
+
+  // Sort handling function
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // If already sorting by this column, toggle direction
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Otherwise, sort by this column in ascending order
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  // Get sorted assemblies
+  const getSortedAssemblies = (): Assembly[] => {
+    return [...assemblies].sort((a, b) => {
+      let valueA: any = a[sortColumn];
+      let valueB: any = b[sortColumn];
+      
+      // Special handling for dates
+      if (sortColumn === 'start_date' || sortColumn === 'end_date') {
+        valueA = valueA ? new Date(valueA).getTime() : 0;
+        valueB = valueB ? new Date(valueB).getTime() : 0;
+        return sortDirection === 'asc' ? valueA - valueB : valueB - valueA;
+      }
+      
+      // Special handling for numeric values that might be null
+      if ((sortColumn === 'width' || sortColumn === 'height' || sortColumn === 'length') && 
+          (valueA === null || valueB === null)) {
+        if (valueA === null && valueB === null) return 0;
+        if (valueA === null) return sortDirection === 'asc' ? 1 : -1;
+        if (valueB === null) return sortDirection === 'asc' ? -1 : 1;
+      }
+      
+      // Case insensitive and natural sorting for strings
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
+      }
+      
+      // For numbers and other types
+      if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
+      if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  // Render column header with sort indicators
+  const renderColumnHeader = (column: any) => {
+    const id = column.id as SortColumn;
+    return (
+      <th 
+        key={id}
+        className="text-left p-3 cursor-pointer hover:bg-gray-200"
+        onClick={() => handleSort(id)}
+      >
+        <div className="flex items-center justify-between">
+          <span className="select-none">{column.label}</span>
+          <span className="w-4 inline-block">
+            {sortColumn === id && (
+              sortDirection === 'asc' ? <ArrowUp size={16} /> : <ArrowDown size={16} />
+            )}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // Delete an assembly
   const handleDeleteAssembly = async (assemblyId: string) => {
@@ -73,64 +160,115 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
     }
   };
 
-  // Handle sorting
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Toggle sort direction if clicking the same field
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new sort field and default to ascending
-      setSortField(field);
-      setSortDirection('asc');
+  // Function to handle printing a single barcode
+  const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string) => {
+    try {
+      setLoading(true);
+      
+      // Get the barcode for this assembly
+      const barcode = await assembliesApi.getAssemblyBarcode(assemblyId);
+      
+      if (barcode) {
+        // Prepare barcode data for print view
+        const barcodeData = [{
+          id: barcode.id,
+          barcode: barcode.barcode,
+          assemblyName: assemblyName,
+          projectName: projectName
+        }];
+        
+        // Show print view
+        setSelectedBarcodes(barcodeData);
+        setShowPrintView(true);
+      } else {
+        setError("No barcode found for this assembly");
+      }
+    } catch (err: any) {
+      console.error('Error preparing barcode for printing:', err);
+      setError(err.message || 'Failed to get barcode');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add this near the top of the component
-  const sortByDate = (dateA: string | null | undefined, dateB: string | null | undefined, direction: 'asc' | 'desc') => {
-    if (!dateA && !dateB) return 0;
-    if (!dateA) return direction === 'asc' ? -1 : 1;
-    if (!dateB) return direction === 'asc' ? 1 : -1;
+  // Handle printing all barcodes for assemblies
+  const handlePrintAllBarcodes = async () => {
+    if (assemblies.length === 0) return;
     
-    const timeA = new Date(dateA).getTime();
-    const timeB = new Date(dateB).getTime();
-    
-    return direction === 'asc' ? timeA - timeB : timeB - timeA;
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Prepare to collect all barcode data
+      const allBarcodeData: any[] = [];
+      
+      // Process assemblies in batches to avoid too many concurrent requests
+      const batchSize = 10;
+      const batches = Math.ceil(assemblies.length / batchSize);
+      
+      for (let i = 0; i < batches; i++) {
+        const batch = assemblies.slice(i * batchSize, (i + 1) * batchSize);
+        
+        // Process each assembly in the batch to get its barcode
+        const batchPromises = batch.map(async (assembly) => {
+          try {
+            // Get existing barcode or generate a new one
+            let barcode = await assembliesApi.getAssemblyBarcode(assembly.id as string);
+            
+            if (!barcode) {
+              // Generate barcode if it doesn't exist
+              barcode = await assembliesApi.generateAssemblyBarcode(assembly.id as string);
+            }
+            
+            return {
+              id: barcode.id,
+              barcode: barcode.barcode,
+              assemblyName: assembly.name,
+              projectName: projectName
+            };
+          } catch (err) {
+            console.error(`Error getting barcode for assembly ${assembly.id}:`, err);
+            return null;
+          }
+        });
+        
+        // Wait for all assemblies in this batch to be processed
+        const batchResults = await Promise.all(batchPromises);
+        
+        // Add valid results to the collection
+        allBarcodeData.push(...batchResults.filter(Boolean));
+      }
+      
+      if (allBarcodeData.length === 0) {
+        setError("No barcodes could be generated");
+        return;
+      }
+      
+      // Set barcodes and show print view
+      setSelectedBarcodes(allBarcodeData);
+      setShowPrintView(true);
+      
+    } catch (err: any) {
+      console.error('Error preparing barcodes for printing:', err);
+      setError(err.message || 'Failed to generate barcodes');
+    } finally {
+      setLoading(false);
+    }
   };
-
-  // Then update the sorting function to handle dates properly
-  const sortedAssemblies = [...assemblies].sort((a, b) => {
-    if (sortField === 'start_date') {
-      return sortByDate(a.start_date as string, b.start_date as string, sortDirection);
-    }
-    if (sortField === 'end_date') {
-      return sortByDate(a.end_date as string, b.end_date as string, sortDirection);
-    }
-    
-    const fieldA = a[sortField as keyof Assembly];
-    const fieldB = b[sortField as keyof Assembly];
-    
-    // Handle null/undefined values
-    if (fieldA === null || fieldA === undefined) return sortDirection === 'asc' ? -1 : 1;
-    if (fieldB === null || fieldB === undefined) return sortDirection === 'asc' ? 1 : -1;
-    
-    // String comparison
-    if (typeof fieldA === 'string' && typeof fieldB === 'string') {
-      return sortDirection === 'asc' 
-        ? fieldA.localeCompare(fieldB)
-        : fieldB.localeCompare(fieldA);
-    }
-    
-    // Number comparison
-    return sortDirection === 'asc'
-      ? Number(fieldA) - Number(fieldB)
-      : Number(fieldB) - Number(fieldA);
-  });
 
   return (
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-xl font-medium text-gray-800">Assemblies</h3>
         <div className="flex gap-2">
+          <button
+            onClick={handlePrintAllBarcodes}
+            disabled={assemblies.length === 0 || loading}
+            className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
+          >
+            <Barcode size={16} className="mr-1" />
+            Barcodes
+          </button>
           <button
             onClick={() => setShowColumnSettings(!showColumnSettings)}
             className="inline-flex items-center px-3 py-1.5 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors text-sm"
@@ -190,36 +328,17 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full rounded-lg overflow-hidden border border-gray-200">
-            <thead className="bg-gray-100 text-gray-700 select-none">
+            <thead className="bg-gray-100 text-gray-700">
               <tr>
-                {/* Dynamic column headers based on preferences */}
-                {visibleColumns.map(column => (
-                  <th 
-                    key={column.id} 
-                    className="text-left p-3 cursor-pointer hover:bg-gray-200"
-                    onClick={() => handleSort(column.id)}
-                  >
-                    <div className="flex items-center">
-                      <span>{column.label}</span>
-                      {sortField === column.id && (
-                        <span className="ml-1">
-                          {sortDirection === 'asc' ? (
-                            <ArrowUp size={14} />
-                          ) : (
-                            <ArrowDown size={14} />
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </th>
-                ))}
+                {/* Dynamic column headers based on preferences - now with sorting */}
+                {visibleColumns.map(column => renderColumnHeader(column))}
                 
                 {/* Always include actions column */}
                 <th className="text-center p-3">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {sortedAssemblies.map((assembly) => (
+              {getSortedAssemblies().map((assembly) => (
                 <tr key={assembly.id} className="hover:bg-gray-50">
                   {/* Dynamic columns based on preferences */}
                   {visibleColumns.map(column => {
@@ -293,6 +412,13 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                       >
                         <Trash2 size={16} className="text-red-600" />
                       </button>
+                      <button
+                        onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name)}
+                        title="Print Barcode"
+                        className="p-1 rounded-full hover:bg-gray-200"
+                      >
+                        <Barcode size={16} className="text-green-600" />
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -300,6 +426,14 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Barcode Print View */}
+      {showPrintView && (
+        <BarcodePrintView
+          barcodes={selectedBarcodes}
+          onClose={() => setShowPrintView(false)}
+        />
       )}
     </div>
   );

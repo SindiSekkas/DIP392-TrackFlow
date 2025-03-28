@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Filter, Search, Download, Trash2, Edit, Eye, ArrowUp, ArrowDown, Settings } from 'lucide-react';
 import { Project, projectsApi } from '../../lib/projectsApi';
-import { formatDate, formatWeight } from '../../utils/formatters';
+import { formatDate, formatWeight, naturalSort } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
 import ColumnSettings from '../../components/ColumnSettings';
 import { ColumnPreference, getDefaultProjectColumns } from '../../lib/preferencesApi';
@@ -164,12 +164,14 @@ const ProjectsPage: React.FC = () => {
         valueB = valueB ? new Date(valueB).getTime() : 0;
       }
       
-      // Case insensitive comparison for strings
+      // Case insensitive and natural sorting for strings
       if (typeof valueA === 'string' && typeof valueB === 'string') {
-        valueA = valueA.toLowerCase();
-        valueB = valueB.toLowerCase();
+        return sortDirection === 'asc' 
+          ? naturalSort(valueA, valueB) 
+          : naturalSort(valueB, valueA);
       }
       
+      // For numbers and other types
       if (valueA < valueB) return sortDirection === 'asc' ? -1 : 1;
       if (valueA > valueB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -301,8 +303,8 @@ const ProjectsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full rounded-lg overflow-hidden">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+          <table className="min-w-full">
             <thead className="bg-gray-100 text-gray-700">
               <tr>
                 {/* Dynamic column headers based on visible columns */}

@@ -86,3 +86,79 @@ export const userValidationRules = {
     param('id').isUUID().withMessage('Invalid user ID')
   ]
 };
+
+// NFC Card validation rules
+export const nfcCardValidationRules = {
+  validateCard: [
+    body('cardId')
+      .notEmpty()
+      .withMessage('NFC card ID is required')
+      .trim()
+  ],
+  
+  assignCard: [
+    body('cardId')
+      .notEmpty()
+      .withMessage('NFC card ID is required')
+      .trim(),
+    body('userId')
+      .isUUID()
+      .withMessage('Valid user ID is required'),
+    body('isActive')
+      .optional()
+      .isBoolean()
+      .withMessage('Active status must be a boolean')
+  ],
+  
+  deactivateCard: [
+    param('id')
+      .isUUID()
+      .withMessage('Invalid NFC card ID')
+  ]
+};
+
+// Assembly Barcode validation rules
+export const assemblyBarcodeValidationRules = {
+  getAssemblyByBarcode: [
+    param('barcode')
+      .notEmpty()
+      .withMessage('Barcode is required')
+      .trim()
+  ],
+  
+  generateBarcode: [
+    body('assemblyId')
+      .isUUID()
+      .withMessage('Valid assembly ID is required'),
+    body('customBarcode')
+      .optional()
+      .isString()
+      .withMessage('Custom barcode must be a string')
+      .trim()
+  ]
+};
+
+// Assembly Status validation rules
+export const assemblyStatusValidationRules = {
+  updateStatus: [
+    body('assemblyId')
+      .isUUID()
+      .withMessage('Valid assembly ID is required'),
+    body('status')
+      .isIn(['Waiting', 'In Production', 'Welding', 'Painting', 'Completed'])
+      .withMessage('Status must be one of: Waiting, In Production, Welding, Painting, Completed'),
+    body('userId')
+      .isUUID()
+      .withMessage('Valid user ID is required'),
+    body('deviceInfo')
+      .optional()
+      .isObject()
+      .withMessage('Device info must be an object')
+  ],
+  
+  getStatusHistory: [
+    param('assemblyId')
+      .isUUID()
+      .withMessage('Invalid assembly ID')
+  ]
+};
