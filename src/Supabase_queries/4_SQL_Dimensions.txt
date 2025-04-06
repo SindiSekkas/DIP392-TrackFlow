@@ -1,0 +1,9 @@
+-- Add dimensions columns to assemblies table
+ALTER TABLE assemblies ADD COLUMN width DECIMAL;
+ALTER TABLE assemblies ADD COLUMN height DECIMAL;
+ALTER TABLE assemblies ADD COLUMN length DECIMAL;
+
+-- Add constraints to ensure positive values when provided
+ALTER TABLE assemblies ADD CONSTRAINT positive_width CHECK (width IS NULL OR width > 0);
+ALTER TABLE assemblies ADD CONSTRAINT positive_height CHECK (height IS NULL OR height > 0);
+ALTER TABLE assemblies ADD CONSTRAINT positive_length CHECK (length IS NULL OR length > 0);

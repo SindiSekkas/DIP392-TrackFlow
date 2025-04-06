@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "TrackFlow - Project Management Tool",
   "scripts": {
+    "predev": "node -e \"console.log('\\n\\x1b[36m%s\\x1b[0m', '🌐 Network access available at:'); try { const { networkInterfaces } = require('os'); const nets = networkInterfaces(); const results = {}; for (const name of Object.keys(nets)) { for (const net of nets[name]) { if (net.family === 'IPv4' && !net.internal) { console.log('\\x1b[33m%s\\x1b[0m', `   http://${net.address}:3000 - Frontend`); console.log('\\x1b[33m%s\\x1b[0m', `   http://${net.address}:3001/api - Backend`); } } } } catch (e) { console.log('\\x1b[31m%s\\x1b[0m', '   Unable to determine network addresses'); } console.log('')\"",
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",

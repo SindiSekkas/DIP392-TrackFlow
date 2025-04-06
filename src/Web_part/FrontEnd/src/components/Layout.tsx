@@ -1,20 +1,24 @@
-// src/components/Layout.tsx
+// src/Web_part/FrontEnd/src/components/Layout.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Home,
-  Package,
-  Users,
   Calendar,
   BarChart2,
   Settings,
-  HelpCircle,
+  BookOpen,
   Search,
   Bell,
-  UserPlus
+  UserPlus,
+  Layers,
+  Box,
+  Building,
+  CreditCard
 } from 'lucide-react';
+//import LogoImage from '/FlowCat.webp';
 import LogoImage from '/Logo/logo-transparent_notext_blue.png';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SupportPanel from './SupportPanel';
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -55,8 +59,9 @@ const menuStyles = {
 } as React.CSSProperties;
 
 // Menu button component for profile dropdown
-const MenuButton = ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => (
+const MenuButton = ({ children, onClick, ref }: { children: React.ReactNode; onClick?: () => void; ref?: React.RefObject<HTMLButtonElement> }) => (
   <button 
+    ref={ref}
     className="w-full text-left px-4 py-2 text-sm transition-colors duration-150 flex items-center"
     style={{ 
       color: 'var(--menu-text)', 
@@ -214,8 +219,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   });
   
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [supportPanelOpen, setSupportPanelOpen] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const supportButtonRef = useRef<HTMLButtonElement>(null);
+  const supportPanelRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const sidebarTriggerRef = useRef<HTMLDivElement>(null);
   
@@ -233,26 +241,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setSidebarExpanded(true);
   };
 
-  // Handle sidebar collapse when mouse leaves
+  // Handle sidebar collapse when mouse leaves, but only if support panel is closed
   const handleSidebarMouseLeave = () => {
-    setSidebarExpanded(false);
+    if (!supportPanelOpen) {
+      setSidebarExpanded(false);
+    }
   };
 
-  // Close profile menu if clicked outside
+  // Close profile menu and support panel if clicked outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      // Close profile menu if clicked outside of both profile menu AND support panel
       if (
         profileMenuRef.current &&
-        !profileMenuRef.current.contains(event.target as Node)
+        !profileMenuRef.current.contains(event.target as Node) &&
+        // Don't close profile menu if clicking in support panel
+        !(supportPanelRef.current && supportPanelRef.current.contains(event.target as Node))
       ) {
         setProfileMenuOpen(false);
       }
+      
+      // Close support panel if clicked outside and not on the Support button
+      if (
+        supportPanelOpen &&
+        supportPanelRef.current &&
+        !supportPanelRef.current.contains(event.target as Node) &&
+        supportButtonRef.current &&
+        !supportButtonRef.current.contains(event.target as Node)
+      ) {
+        setSupportPanelOpen(false);
+      }
     }
+    
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [supportPanelOpen]);
 
   // Toggle profile menu
   const toggleProfileMenu = () => {
@@ -268,6 +293,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       console.error('Logout failed:', error);
     }
   };
+  
+  // Toggle support panel
+  const handleSupportClick = () => {
+    // First ensure sidebar is expanded
+    setSidebarExpanded(true);
+    // Then toggle the support panel
+    setSupportPanelOpen(!supportPanelOpen);
+    // Remove this line to keep the profile menu open when clicking Support
+    // setProfileMenuOpen(false);
+  };
 
   return (
     // Apply CSS variables to the root element
@@ -280,17 +315,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         backgroundColor: 'var(--header-bg)',
         borderColor: 'var(--header-border)'
       }}>
-        <div className="flex items-center justify-between p-4">
+        <div className="flex items-center justify-between p-2.5">
           {/* Left side: logo and title */}
           <div className="flex items-center space-x-3">
             {/* Logo */}
-            <div className="h-10 w-10 flex items-center justify-center flex-shrink-0 transform -translate-x-[3px]  ">
+            <div className="h-10 w-10 flex items-center justify-center flex-shrink-0">
               <img
                 src={LogoImage}
                 alt="TrackFlow Logo"
                 className="max-h-full max-w-full object-contain"
+                style={{
+                  transform: 'translateX(3px)' // Move logo slightly to the right
+                }}
               />
             </div>
+            {/* TrackFlow title with gradient */}
+            <div className="relative" style={{ userSelect: 'none' }}>
+              <h1 className="font-bold" style={{ 
+                fontSize: '1.6rem', 
+                fontFamily: 'system-ui, sans-serif',
+                background: 'linear-gradient(90deg, #1E40AF 0%, #3B82F6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                transform: 'translateY(0px) translateX(3px)',
+              }}>
+                TrackFlow
+              </h1>
+            </div>             
           </div>
 
           {/* Right side: search and notifications */}
@@ -324,26 +376,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </header>
 
       {/* Main content area with sidebar */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 relative overflow-hidden">
         {/* Additional trigger area for sidebar that extends to the absolute edge */}
         <div 
           ref={sidebarTriggerRef}
-          className="absolute left-0 top-[70px] bottom-0 w-2 z-20"
+          className="absolute left-0 top-0 bottom-0 w-3 z-20" 
+          style={{ left: '-3px' }} 
           onMouseEnter={handleSidebarMouseEnter}
         />
 
-        {/* Sidebar - below the header */}
+        {/* Sidebar - positioned absolutely to overlap content when expanded */}
         <div
           ref={sidebarRef}
           onMouseEnter={handleSidebarMouseEnter}
           onMouseLeave={handleSidebarMouseLeave}
           className={`
+            absolute top-0 left-0 bottom-0
             ${sidebarExpanded ? 'w-64' : 'w-18'}
             bg-white border-r border-gray-200
             transition-all duration-300
-            relative
             flex flex-col h-full
             overflow-visible
+            z-10
           `}
         >
           {/* Navigation with dividers */}
@@ -361,11 +415,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   setHoveredItem={setHoveredItem}
                 />
                 <NavItem
-                  icon={<Package size={24} />}
+                  icon={<Layers size={24} />}
                   label="Projects"
                   to="/dashboard/projects"
                   expanded={sidebarExpanded}
-                  id="package"
+                  id="projects"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<Box size={24} />}
+                  label="Assemblies"
+                  to="/dashboard/assemblies"
+                  expanded={sidebarExpanded}
+                  id="assemblies"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<Building size={24} />}
+                  label="Clients"
+                  to="/dashboard/clients"
+                  expanded={sidebarExpanded}
+                  id="clients"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />
@@ -384,20 +456,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="mb-6">
               <div>
                 <NavItem
-                  icon={<Users size={24} />}
-                  label="Team"
-                  to="/dashboard/team"
-                  expanded={sidebarExpanded}
-                  id="users"
-                  hoveredItem={hoveredItem}
-                  setHoveredItem={setHoveredItem}
-                />
-                <NavItem
                   icon={<Calendar size={24} />}
                   label="Calendar"
                   to="/dashboard/calendar"
                   expanded={sidebarExpanded}
                   id="calendar"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<CreditCard size={24} />}
+                  label="Card Management"
+                  to="/dashboard/nfc-cards"
+                  expanded={sidebarExpanded}
+                  id="nfc-cards"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />
@@ -443,8 +515,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   setHoveredItem={setHoveredItem}
                 />
                 <NavItem
-                  icon={<HelpCircle size={24} />}
-                  label="Help"
+                  icon={<BookOpen size={24} />}
+                  label="Guides"
                   to="/dashboard/help"
                   expanded={sidebarExpanded}
                   id="help"
@@ -494,9 +566,28 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <MenuButton onClick={() => console.log('Account preferences')}>
                   Account preferences
                 </MenuButton>
-                <MenuButton onClick={() => console.log('Support')}>
+                <button 
+                  ref={supportButtonRef}
+                  className="w-full text-left px-4 py-2 text-sm transition-colors duration-150 flex items-center"
+                  style={{ 
+                    color: 'var(--menu-text)', 
+                    backgroundColor: 'var(--menu-bg)',
+                    borderRadius: '0',
+                    border: 'none',
+                    padding: '0.5rem 1rem',
+                    fontWeight: '400',
+                    outline: 'none'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--menu-hover-bg)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--menu-bg)';
+                  }}
+                  onClick={handleSupportClick}
+                >
                   Support
-                </MenuButton>
+                </button>
               </div>
               <div className="border-t" style={{ borderColor: 'var(--menu-border)' }}>
                 <MenuButton onClick={handleLogout}>
@@ -507,12 +598,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </div>
         </div>
 
-        {/* Main content container for children */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Main content container for children - always takes full width */}
+        <div className="flex-1 flex flex-col overflow-hidden pl-18">
           <main className="flex-1 overflow-auto bg-gray-50 p-6">
             {children}
           </main>
         </div>
+
+        {/* Support Panel - positioned next to the account section */}
+        {supportPanelOpen && (
+          <div 
+            ref={supportPanelRef} 
+            className="absolute z-50"
+            style={{
+              bottom: '105px',  // Position below the account section
+              left: '240px',    // Position to the right of the sidebar
+            }}
+          >
+            <SupportPanel onClose={() => setSupportPanelOpen(false)} />
+          </div>
+        )}
       </div>
     </div>
   );
