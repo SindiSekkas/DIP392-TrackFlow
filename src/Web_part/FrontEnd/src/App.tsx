@@ -10,7 +10,7 @@ import NotFoundPage from './pages/Errors/404';
 import ForbiddenPage from './pages/Errors/403';
 import ServerErrorPage from './pages/Errors/500';
 import { useAuth } from './contexts/AuthContext';
-import HelpCenter from './pages/HelpCenter/HelpCenter';
+import HelpComponent from './pages/HelpCenter/HelpComponent';
 
 // Placeholder for future components - replace with actual components when created
 const ProjectsComponent = () => <div className="p-4">Projects Component</div>;
@@ -18,7 +18,6 @@ const TeamComponent = () => <div className="p-4">Team Component</div>;
 const CalendarComponent = () => <div className="p-4">Calendar Component</div>;
 const ReportsComponent = () => <div className="p-4">Reports Component</div>;
 const SettingsComponent = () => <div className="p-4">Settings Component</div>;
-<Route path="/dashboard/help" element={<HelpCenter />} />
 
 // Root level authentication checker component
 const AuthChecker = () => {
@@ -83,7 +82,7 @@ function App() {
                         
                         <Route path="/dashboard/help" element={
                             <Layout>
-                                <HelpCenter />
+                                <HelpComponent />
                             </Layout>
                         } />
                         
