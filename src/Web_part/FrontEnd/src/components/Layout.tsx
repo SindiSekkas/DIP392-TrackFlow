@@ -12,6 +12,7 @@ import {
   Layers,
   Box,
   Building,
+  Truck,
   CreditCard
 } from 'lucide-react';
 //import LogoImage from '/FlowCat.webp';
@@ -438,6 +439,15 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   to="/dashboard/clients"
                   expanded={sidebarExpanded}
                   id="clients"
+                  hoveredItem={hoveredItem}
+                  setHoveredItem={setHoveredItem}
+                />
+                <NavItem
+                  icon={<Truck size={24} />}
+                  label="Logistics"
+                  to="/dashboard/logistics"
+                  expanded={sidebarExpanded}
+                  id="logistics"
                   hoveredItem={hoveredItem}
                   setHoveredItem={setHoveredItem}
                 />
