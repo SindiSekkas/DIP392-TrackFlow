@@ -1,0 +1,7 @@
+-- Add instance_number to assemblies table
+ALTER TABLE assemblies ADD COLUMN instance_number INTEGER NOT NULL DEFAULT 1;
+
+-- Update unique constraint to include instance_number
+ALTER TABLE assemblies DROP CONSTRAINT IF EXISTS unique_assembly_name_per_project;
+ALTER TABLE assemblies ADD CONSTRAINT unique_assembly_name_instance_per_project 
+    UNIQUE (project_id, name, instance_number)
