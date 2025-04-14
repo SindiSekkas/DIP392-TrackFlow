@@ -157,38 +157,59 @@ const LogisticsBatchDetails: React.FC = () => {
     }
   };
 
-  // Handle search for assemblies
-  const handleSearchAssemblies = async () => {
-    if (!searchTerm || searchTerm.length < 2) return;
+  // Handle search for assemblies - now with debounce
+  const searchAssembliesDebounced = React.useCallback(
+    async (term: string) => {
+      if (!term || term.length < 2) {
+        // Clear results if search term is too short
+        setSearchResults([]);
+        return;
+      }
+      
+      try {
+        setSearching(true);
+        
+        const projectId = batch?.project_id;
+        if (!projectId) return;
+        
+        const allAssemblies = await assembliesApi.getAssembliesByProject(projectId);
+        
+        // Filter out assemblies already in this batch
+        const batchAssemblyIds = assemblies.map(a => a.assembly_id);
+        const availableAssemblies = allAssemblies.filter(
+          a => !batchAssemblyIds.includes(a.id as string)
+        );
+        
+        // Filter by search term (name or barcode)
+        const filtered = availableAssemblies.filter(
+          a => a.name.toLowerCase().includes(term.toLowerCase())
+        );
+        
+        setSearchResults(filtered);
+      } catch (err) {
+        console.error('Error searching assemblies:', err);
+        setError('Failed to search assemblies. Please try again.');
+      } finally {
+        setSearching(false);
+      }
+    },
+    [batch?.project_id, assemblies]
+  );
+
+  // Setup auto-search with debounce 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchAssembliesDebounced(searchTerm);
+      }
+    }, 300); // 300ms debounce
     
-    try {
-      setSearching(true);
-      
-      // You would typically have an API endpoint to search assemblies
-      // For now, this is a placeholder that gets all assemblies for the project
-      const projectId = batch?.project_id;
-      if (!projectId) return;
-      
-      const allAssemblies = await assembliesApi.getAssembliesByProject(projectId);
-      
-      // Filter out assemblies already in this batch
-      const batchAssemblyIds = assemblies.map(a => a.assembly_id);
-      const availableAssemblies = allAssemblies.filter(
-        a => !batchAssemblyIds.includes(a.id as string)
-      );
-      
-      // Filter by search term (name or barcode)
-      const filtered = availableAssemblies.filter(
-        a => a.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      
-      setSearchResults(filtered);
-    } catch (err) {
-      console.error('Error searching assemblies:', err);
-      setError('Failed to search assemblies. Please try again.');
-    } finally {
-      setSearching(false);
-    }
+    return () => clearTimeout(timer);
+  }, [searchTerm, searchAssembliesDebounced]);
+
+  // Manual search (as a fallback)
+  const handleSearchAssemblies = () => {
+    searchAssembliesDebounced(searchTerm);
   };
 
   // Handle barcode scan
@@ -708,9 +729,9 @@ const LogisticsBatchDetails: React.FC = () => {
                 </div>
               </div>
               
-              {/* Search Input */}
+              {/* Search Input - Now with auto-search */}
               <div className="mb-4">
-                <div className="flex">
+                <div className="relative">
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -723,18 +744,18 @@ const LogisticsBatchDetails: React.FC = () => {
                       }
                     }}
                     placeholder="Search assemblies..."
-                    className="flex-1 p-2 border border-gray-300 rounded-l-md"
+                    className="w-full p-2 border border-gray-300 rounded-md pr-12"
                   />
-                  <button
-                    onClick={handleSearchAssemblies}
-                    disabled={searching || searchTerm.length < 2}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {searching ? 'Searching...' : 'Search'}
-                  </button>
+                  {searching && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Search for assemblies from project: {batch.project?.name || 'Unknown'}
+                  {searchTerm.length < 2 
+                    ? "Type at least 2 characters to search" 
+                    : `Searching for assemblies from project: ${batch.project?.name || batch.project?.internal_number || 'Unknown'}`}
                 </p>
               </div>
               

@@ -68,10 +68,18 @@ export interface LogisticsDocument {
 }
 
 // Helper function to clean batch data before sending to API
-const cleanBatchData = (batch: LogisticsBatch): LogisticsBatch => {
+const cleanBatchData = (batch: LogisticsBatch): any => {
+  // Create a clean copy without relation objects
+  const {
+    client, // Remove client object
+    project, // Remove project object 
+    shipping_company, // Remove shipping_company object
+    ...cleanedBatch
+  } = batch;
+  
   // Ensure dates are properly formatted or null
   return {
-    ...batch,
+    ...cleanedBatch,
     shipment_date: batch.shipment_date || null,
     estimated_arrival: batch.estimated_arrival || null,
     actual_arrival: batch.actual_arrival || null
