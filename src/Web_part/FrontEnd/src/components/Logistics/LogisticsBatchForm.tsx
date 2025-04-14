@@ -74,8 +74,10 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
         
         // If editing, filter projects for selected client
         if (isEditing && initialData?.client_id) {
+          // Use clientsData directly instead of clients state which might not be updated yet
+          const selectedClient = clientsData.find(c => c.id === initialData.client_id);
           const clientProjects = projectsData.filter(
-            project => project.client === clients.find(c => c.id === initialData.client_id)?.company_name
+            project => project.client === selectedClient?.company_name
           );
           setSelectedClientProjects(clientProjects);
         }
@@ -92,7 +94,7 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
     fetchFormData();
   }, [isEditing, initialData]);
 
-  // Update projects when client changes
+  // Update projects when client changes or when clients/projects lists are updated
   useEffect(() => {
     if (formData.client_id) {
       const selectedClient = clients.find(c => c.id === formData.client_id);
@@ -101,12 +103,13 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
       );
       setSelectedClientProjects(clientProjects);
       
-      // If the current project doesn't belong to this client, reset it
-      if (formData.project_id && !clientProjects.some(p => p.id === formData.project_id)) {
+      // Only reset project_id if the client has changed and the current project doesn't belong to this client
+      // This prevents resetting the project when just loading the data
+      if (formData.project_id && !clientProjects.some(p => p.id === formData.project_id) && !isEditing) {
         setFormData(prev => ({ ...prev, project_id: '' }));
       }
     }
-  }, [formData.client_id, clients, projects]);
+  }, [formData.client_id, clients, projects, isEditing]);
 
   // Handle form input changes
   const handleChange = (
