@@ -1,12 +1,14 @@
 // src/components/Logistics/LogisticsBatchForm.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   AlertCircle, 
   Upload, 
   X, 
   Truck,
-  InfoIcon
+  InfoIcon,
+  Plus,
+  Check
 } from 'lucide-react';
 import { LogisticsBatch, ShippingCompany, logisticsApi } from '../../lib/logisticsApi';
 import { Project, projectsApi } from '../../lib/projectsApi';
@@ -46,6 +48,13 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
   const [shippingCompanies, setShippingCompanies] = useState<ShippingCompany[]>([]);
   const [selectedClientProjects, setSelectedClientProjects] = useState<Project[]>([]);
   
+  // Shipping company autocomplete
+  const [shippingCompanyInput, setShippingCompanyInput] = useState('');
+  const [shippingCompanySuggestions, setShippingCompanySuggestions] = useState<ShippingCompany[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+  
   // Document upload state
   const [files, setFiles] = useState<File[]>([]);
   
@@ -80,6 +89,14 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
             project => project.client === selectedClient?.company_name
           );
           setSelectedClientProjects(clientProjects);
+          
+          // Set shipping company input if editing
+          if (initialData.shipping_company_id) {
+            const company = shippingCompaniesData.find(c => c.id === initialData.shipping_company_id);
+            if (company) {
+              setShippingCompanyInput(company.name);
+            }
+          }
         }
         
         setError(null);
@@ -110,6 +127,88 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
       }
     }
   }, [formData.client_id, clients, projects, isEditing]);
+
+  // Handler for shipping company input changes
+  const handleShippingCompanyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setShippingCompanyInput(value);
+    
+    // If input becomes empty or doesn't match the current selection, clear the selection
+    if (!value || (formData.shipping_company_id && 
+        shippingCompanies.find(c => c.id === formData.shipping_company_id)?.name !== value)) {
+      setFormData({
+        ...formData,
+        shipping_company_id: ''
+      });
+    }
+    
+    // Search for suggestions
+    searchShippingCompanies(value);
+  };
+
+  // Search shipping companies for autocomplete
+  const searchShippingCompanies = async (query: string) => {
+    if (query.length < 2) {
+      setShippingCompanySuggestions([]);
+      return;
+    }
+    
+    try {
+      const results = await logisticsApi.searchShippingCompanies(query);
+      setShippingCompanySuggestions(results);
+      setShowSuggestions(true);
+    } catch (err) {
+      console.error('Error searching shipping companies:', err);
+      setShippingCompanySuggestions([]);
+    }
+  };
+
+  // Select a shipping company from suggestions
+  const selectShippingCompany = (company: ShippingCompany) => {
+    setShippingCompanyInput(company.name);
+    setFormData({
+      ...formData,
+      shipping_company_id: company.id as string
+    });
+    setShowSuggestions(false);
+  };
+
+  // Create a new shipping company
+  const createShippingCompany = async () => {
+    if (!shippingCompanyInput.trim()) return;
+    
+    try {
+      setIsCreatingCompany(true);
+      const newCompany = await logisticsApi.createShippingCompany(shippingCompanyInput);
+      
+      // Update the list and select the new company
+      setShippingCompanies(prev => [...prev, newCompany]);
+      setFormData({
+        ...formData,
+        shipping_company_id: newCompany.id as string
+      });
+      setShowSuggestions(false);
+    } catch (err) {
+      console.error('Error creating shipping company:', err);
+      setError('Failed to create new shipping company. Please try again.');
+    } finally {
+      setIsCreatingCompany(false);
+    }
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Handle form input changes
   const handleChange = (
@@ -176,26 +275,40 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
         return;
       }
       
+      let finalFormData = { ...formData };
+      
+      // If shipping company input is filled but no ID is selected, create a new company
+      if (shippingCompanyInput.trim() && !formData.shipping_company_id) {
+        try {
+          const newCompany = await logisticsApi.createShippingCompany(shippingCompanyInput);
+          finalFormData.shipping_company_id = newCompany.id as string;
+        } catch (err) {
+          console.error('Error creating shipping company:', err);
+          setError('Failed to create shipping company. Please try again.');
+          setSubmitting(false);
+          return;
+        }
+      }
+      
       // Generate batch number if not provided
-      let dataToSubmit = { ...formData };
-      if (!dataToSubmit.batch_number) {
-        dataToSubmit.batch_number = generateBatchNumber();
+      if (!finalFormData.batch_number) {
+        finalFormData.batch_number = generateBatchNumber();
       }
       
       // Clean up date fields - ensure empty strings are converted to null
-      dataToSubmit = {
-        ...dataToSubmit,
-        shipment_date: dataToSubmit.shipment_date || null,
-        estimated_arrival: dataToSubmit.estimated_arrival || null,
-        actual_arrival: dataToSubmit.actual_arrival || null
+      finalFormData = {
+        ...finalFormData,
+        shipment_date: finalFormData.shipment_date || null,
+        estimated_arrival: finalFormData.estimated_arrival || null,
+        actual_arrival: finalFormData.actual_arrival || null
       };
       
       // Create or update batch
       let batch: LogisticsBatch;
       if (isEditing && initialData?.id) {
-        batch = await logisticsApi.updateBatch(initialData.id, dataToSubmit);
+        batch = await logisticsApi.updateBatch(initialData.id, finalFormData);
       } else {
-        batch = await logisticsApi.createBatch(dataToSubmit);
+        batch = await logisticsApi.createBatch(finalFormData);
       }
       
       // Upload files if any
@@ -333,25 +446,68 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
             )}
           </div>
 
-          {/* Shipping Company */}
+          {/* Shipping Company - New Autocomplete Version */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Shipping Company *
             </label>
-            <select
-              name="shipping_company_id"
-              value={formData.shipping_company_id}
-              onChange={handleChange}
-              required
-              className="w-full p-2 border border-gray-300 rounded-md"
-            >
-              <option value="">Select Shipping Company</option>
-              {shippingCompanies.map(company => (
-                <option key={company.id} value={company.id}>
-                  {company.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative" ref={suggestionRef}>
+              <input
+                type="text"
+                value={shippingCompanyInput}
+                onChange={handleShippingCompanyInputChange}
+                onFocus={() => {
+                  if (shippingCompanyInput.length >= 2) {
+                    setShowSuggestions(true);
+                  }
+                }}
+                placeholder="Enter shipping company name"
+                className="w-full p-2 border border-gray-300 rounded-md"
+                required
+              />
+              
+              {/* Suggestions dropdown */}
+              {showSuggestions && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200 max-h-60 overflow-y-auto">
+                  {shippingCompanySuggestions.length > 0 ? (
+                    <>
+                      {shippingCompanySuggestions.map(company => (
+                        <div 
+                          key={company.id}
+                          className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex items-center justify-between"
+                          onClick={() => selectShippingCompany(company)}
+                        >
+                          <span>{company.name}</span>
+                          {formData.shipping_company_id === company.id && (
+                            <Check size={16} className="text-green-500" />
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="p-4 text-center">
+                      <p className="text-gray-500 mb-2">No matching companies found</p>
+                      {shippingCompanyInput.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={createShippingCompany}
+                          disabled={isCreatingCompany}
+                          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm flex items-center mx-auto"
+                        >
+                          <Plus size={14} className="mr-1" />
+                          {isCreatingCompany ? 'Creating...' : `Create "${shippingCompanyInput}"`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            {formData.shipping_company_id && (
+              <p className="text-xs text-green-600 mt-1">
+                Selected shipping company: {shippingCompanies.find(c => c.id === formData.shipping_company_id)?.name}
+              </p>
+            )}
           </div>
 
           {/* Delivery Address */}

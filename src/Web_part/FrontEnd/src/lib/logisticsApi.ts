@@ -170,6 +170,36 @@ export const logisticsApi = {
     return data as ShippingCompany[];
   },
   
+  // Search shipping companies by name (for autocomplete)
+  searchShippingCompanies: async (query: string): Promise<ShippingCompany[]> => {
+    if (!query || query.length < 2) return [];
+    
+    const { data, error } = await supabase
+      .from('shipping_companies')
+      .select('*')
+      .ilike('name', `%${query}%`)
+      .order('name', { ascending: true });
+      
+    if (error) throw error;
+    return data as ShippingCompany[];
+  },
+  
+  // Create a new shipping company
+  createShippingCompany: async (name: string, contact_info?: string): Promise<ShippingCompany> => {
+    const { data, error } = await supabase
+      .from('shipping_companies')
+      .insert({
+        name: name.trim(),
+        contact_info: contact_info || '',
+        active: true
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data as ShippingCompany;
+  },
+  
   // Get assemblies for a batch
   getBatchAssemblies: async (batchId: string): Promise<BatchAssembly[]> => {
     const { data, error } = await supabase
