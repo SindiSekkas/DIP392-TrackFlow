@@ -67,6 +67,17 @@ export interface LogisticsDocument {
   uploaded_by?: string;
 }
 
+// Helper function to clean batch data before sending to API
+const cleanBatchData = (batch: LogisticsBatch): LogisticsBatch => {
+  // Ensure dates are properly formatted or null
+  return {
+    ...batch,
+    shipment_date: batch.shipment_date || null,
+    estimated_arrival: batch.estimated_arrival || null,
+    actual_arrival: batch.actual_arrival || null
+  };
+};
+
 // API for working with logistics batches
 export const logisticsApi = {
   // Get all logistics batches
@@ -109,9 +120,12 @@ export const logisticsApi = {
       batch.batch_number = `B${Date.now().toString(36).toUpperCase()}`;
     }
     
+    // Clean the data to ensure proper format
+    const cleanedBatch = cleanBatchData(batch);
+    
     const { data, error } = await supabase
       .from('logistics_batches')
-      .insert(batch)
+      .insert(cleanedBatch)
       .select()
       .single();
       
@@ -121,9 +135,12 @@ export const logisticsApi = {
   
   // Update batch
   updateBatch: async (id: string, batch: Partial<LogisticsBatch>): Promise<LogisticsBatch> => {
+    // Clean the data to ensure proper format
+    const cleanedBatch = cleanBatchData(batch as LogisticsBatch);
+    
     const { data, error } = await supabase
       .from('logistics_batches')
-      .update(batch)
+      .update(cleanedBatch)
       .eq('id', id)
       .select()
       .single();

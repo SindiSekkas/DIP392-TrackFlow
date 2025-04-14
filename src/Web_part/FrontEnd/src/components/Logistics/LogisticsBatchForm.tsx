@@ -1,4 +1,4 @@
-// src/Web_part/FrontEnd/src/components/Logistics/LogisticsBatchForm.tsx
+// src/components/Logistics/LogisticsBatchForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -178,6 +178,14 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
       if (!dataToSubmit.batch_number) {
         dataToSubmit.batch_number = generateBatchNumber();
       }
+      
+      // Clean up date fields - ensure empty strings are converted to null
+      dataToSubmit = {
+        ...dataToSubmit,
+        shipment_date: dataToSubmit.shipment_date || null,
+        estimated_arrival: dataToSubmit.estimated_arrival || null,
+        actual_arrival: dataToSubmit.actual_arrival || null
+      };
       
       // Create or update batch
       let batch: LogisticsBatch;
