@@ -369,7 +369,7 @@ const formatContent = (content: string): string => {
           {/* Navigation sections */}
           <div className="flex-1 overflow-y-auto p-4">
             <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-2">
-              In This Document
+              Overview
             </h3>
             
             {isLoading ? (
