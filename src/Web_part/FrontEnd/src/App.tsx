@@ -25,13 +25,13 @@ import ClientDetailsPage from './pages/Clients/ClientDetailsPage';
 import CreateClientPage from './pages/Clients/CreateClientPage';
 import EditClientPage from './pages/Clients/EditClientPage';
 import NFCCardManagement from './pages/NFCCards/NFCCardManagement';
+import HelpComponent from './pages/HelpCenter/HelpComponent';
 
 // Placeholder for future components - replace with actual components when created
 const TeamComponent = () => <div className="p-4">Team Component</div>;
 const CalendarComponent = () => <div className="p-4">Calendar Component</div>;
 const ReportsComponent = () => <div className="p-4">Reports Component</div>;
 const SettingsComponent = () => <div className="p-4">Settings Component</div>;
-const HelpComponent = () => <div className="p-4">Help Component</div>;
 
 // Root level authentication checker component
 const AuthChecker = () => {
