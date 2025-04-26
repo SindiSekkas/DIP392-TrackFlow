@@ -1,10 +1,8 @@
-// src/components/Projects/ProjectAssemblies.tsx - Updated with expandable assemblies
+// Improved ProjectAssemblies.tsx with smooth group expansion
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown, 
-  ChevronRight, ChevronDown, Package 
-} from 'lucide-react';
+  Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown, ChevronDown, Package } from 'lucide-react';
 import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension, naturalSort } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
@@ -23,9 +21,13 @@ interface ProjectAssembliesProps {
 }
 
 const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
+  // Main state for assemblies and child assemblies
   const [assemblies, setAssemblies] = useState<Assembly[]>([]);
   const [expandedAssemblies, setExpandedAssemblies] = useState<{[key: string]: boolean}>({});
   const [childAssemblies, setChildAssemblies] = useState<{[key: string]: Assembly[]}>({});
+  // Track which assemblies are currently loading children to show loading indicators only for them
+  const [loadingChildrenFor, setLoadingChildrenFor] = useState<{[key: string]: boolean}>({});
+  
   const [projectName, setProjectName] = useState<string>('Project');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,45 +62,65 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   const toggleExpandAssembly = async (assemblyId: string) => {
     // If already expanded, just collapse
     if (expandedAssemblies[assemblyId]) {
-      setExpandedAssemblies({
-        ...expandedAssemblies,
+      setExpandedAssemblies(prev => ({
+        ...prev,
         [assemblyId]: false
-      });
+      }));
       return;
     }
     
-    // If not already expanded, load children and expand
-    try {
-      // Only fetch children if we don't already have them
-      if (!childAssemblies[assemblyId] || childAssemblies[assemblyId].length === 0) {
-        setLoading(true);
-        
-        // Load child assemblies using supabase
-        const { data, error } = await supabase
-          .from('assemblies')
-          .select('*')
-          .eq('parent_id', assemblyId)
-          .order('child_number', { ascending: true });
-        
-        if (error) throw error;
-        
-        setChildAssemblies({
-          ...childAssemblies,
-          [assemblyId]: data as Assembly[]
-        });
-      }
-      
-      // Mark as expanded
-      setExpandedAssemblies({
-        ...expandedAssemblies,
+    // If we already have the children loaded, just expand without fetching
+    if (childAssemblies[assemblyId] && childAssemblies[assemblyId].length > 0) {
+      setExpandedAssemblies(prev => ({
+        ...prev,
         [assemblyId]: true
-      });
+      }));
+      return;
+    }
+    
+    // Otherwise, we need to fetch the children
+    try {
+      // Set loading state only for this assembly
+      setLoadingChildrenFor(prev => ({
+        ...prev,
+        [assemblyId]: true
+      }));
+      
+      // Mark as expanded immediately to start the animation
+      setExpandedAssemblies(prev => ({
+        ...prev,
+        [assemblyId]: true
+      }));
+      
+      // Load child assemblies using supabase
+      const { data, error } = await supabase
+        .from('assemblies')
+        .select('*')
+        .eq('parent_id', assemblyId)
+        .order('child_number', { ascending: true });
+      
+      if (error) throw error;
+      
+      // Update the child assemblies in state
+      setChildAssemblies(prev => ({
+        ...prev,
+        [assemblyId]: data as Assembly[]
+      }));
       
     } catch (err) {
       console.error('Error fetching child assemblies:', err);
       setError('Failed to load child assemblies');
+      // If error, collapse the assembly again
+      setExpandedAssemblies(prev => ({
+        ...prev,
+        [assemblyId]: false
+      }));
     } finally {
-      setLoading(false);
+      // Clear loading state for this assembly
+      setLoadingChildrenFor(prev => ({
+        ...prev,
+        [assemblyId]: false
+      }));
     }
   };
 
@@ -560,12 +582,15 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                                 {assembly.is_parent ? (
                                   <button
                                     onClick={() => toggleExpandAssembly(assembly.id as string)}
-                                    className="mr-2 text-gray-500 hover:text-gray-700"
+                                    className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none transition-transform duration-200"
+                                    style={{ 
+                                      transform: expandedAssemblies[assembly.id as string] ? 'rotate(0deg)' : 'rotate(-90deg)'
+                                    }}
                                   >
-                                    {expandedAssemblies[assembly.id as string] ? (
-                                      <ChevronDown size={18} />
+                                    {loadingChildrenFor[assembly.id as string] ? (
+                                      <span className="inline-block w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin"></span>
                                     ) : (
-                                      <ChevronRight size={18} />
+                                      <ChevronDown size={18} />
                                     )}
                                   </button>
                                 ) : (
@@ -660,12 +685,42 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                     </td>
                   </tr>
                   
-                  {/* Child assemblies rows - only render if expanded */}
-                  {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
-                    childAssemblies[assembly.id as string]?.map(childAssembly => 
-                      renderChildAssemblyRow(childAssembly)
-                    )
-                  }
+                  {/* Child assemblies container with smooth height transition */}
+                  {assembly.is_parent && (
+                    <tr className="child-assemblies-container">
+                      <td colSpan={visibleColumns.length + 1} className="p-0 border-0">
+                        {/* We use CSS max-height transition for smooth animation */}
+                        <div 
+                          className="transition-all duration-300 ease-in-out overflow-hidden"
+                          style={{ 
+                            maxHeight: expandedAssemblies[assembly.id as string] 
+                              ? `${(childAssemblies[assembly.id as string]?.length || 0) * 53}px` 
+                              : '0',
+                            opacity: expandedAssemblies[assembly.id as string] ? 1 : 0
+                          }}
+                        >
+                          <table className="w-full">
+                            <tbody>
+                              {/* Child assemblies rows - only rendered when data is available */}
+                              {childAssemblies[assembly.id as string]?.map(childAssembly => 
+                                renderChildAssemblyRow(childAssembly)
+                              )}
+                              
+                              {/* Show loading placeholder if we're still loading children */}
+                              {loadingChildrenFor[assembly.id as string] && !childAssemblies[assembly.id as string] && (
+                                <tr className="bg-gray-50">
+                                  <td colSpan={visibleColumns.length + 1} className="p-3 text-center">
+                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
+                                    <span className="text-sm text-gray-500">Loading child assemblies...</span>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               ))}
             </tbody>
