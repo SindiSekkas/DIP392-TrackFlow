@@ -235,6 +235,7 @@ export const assembliesApi = {
       .from('assemblies')
       .select('*')
       .eq('project_id', projectId)
+      .is('parent_id', null) // Only get top-level assemblies
       .order('created_at', { ascending: false });
       
     if (error) throw error;
