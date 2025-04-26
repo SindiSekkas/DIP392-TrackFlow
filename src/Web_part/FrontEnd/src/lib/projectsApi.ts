@@ -37,6 +37,12 @@ export interface Assembly {
   quality_control_notes?: string | null;
   created_at?: string;
   updated_at?: string;
+  parent_id?: string | null;  
+  is_parent?: boolean;        
+  original_quantity?: number; 
+  child_number?: number;      
+  children?: Assembly[];     
+  expanded?: boolean;       
 }
 
 export interface AssemblyWithProject extends Assembly {
@@ -268,45 +274,165 @@ export const assembliesApi = {
   
   // Create assembly
   createAssembly: async (assembly: Assembly): Promise<Assembly> => {
-    // Create the assembly first
-    const { data, error } = await supabase
-      .from('assemblies')
-      .insert(assembly)
-      .select()
-      .single();
+    try {
+      // Determine if this should be a parent assembly
+      const shouldCreateChildren = assembly.quantity > 1;
       
-    if (error) throw error;
-    
-    // Attempt to generate a barcode but don't let it affect the success of assembly creation
-    if (data.id) {
-      try {
-        await supabase
-          .from('assembly_barcodes')
+      if (shouldCreateChildren) {
+        // Create parent assembly
+        const parentAssembly = {
+          ...assembly,
+          is_parent: true,
+          original_quantity: assembly.quantity, // Store original quantity
+          quantity: assembly.quantity // Keep the original quantity for reference
+        };
+        
+        // Create the parent assembly record
+        const { data: parentData, error: parentError } = await supabase
+          .from('assemblies')
+          .insert(parentAssembly)
+          .select()
+          .single();
+          
+        if (parentError) throw parentError;
+        
+        // Create child assemblies
+        const childPromises = Array.from({ length: assembly.quantity }).map(async (_, index) => {
+          const childNumber = index + 1;
+          const childAssembly = {
+            project_id: assembly.project_id,
+            name: `${assembly.name}-${childNumber}`,
+            weight: assembly.weight,
+            quantity: 1,  // Child assemblies always have quantity 1
+            width: assembly.width,
+            height: assembly.height,
+            length: assembly.length,
+            painting_spec: assembly.painting_spec,
+            status: assembly.status,
+            start_date: assembly.start_date,
+            end_date: assembly.end_date,
+            quality_control_status: assembly.quality_control_status,
+            quality_control_notes: assembly.quality_control_notes,
+            parent_id: parentData.id,
+            is_parent: false,
+            child_number: childNumber
+          };
+          
+          // Create child assembly
+          const { data: childData, error: childError } = await supabase
+            .from('assemblies')
+            .insert(childAssembly)
+            .select()
+            .single();
+            
+          if (childError) throw childError;
+          
+          // Generate barcode for the child
+          try {
+            await supabase
+              .from('assembly_barcodes')
+              .insert({
+                assembly_id: childData.id,
+                barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
+              });
+          } catch (barcodeError) {
+            console.error(`Barcode generation failed for child assembly ${childData.id}:`, barcodeError);
+            // Continue with other children even if one fails
+          }
+          
+          return childData;
+        });
+        
+        // Wait for all children to be created
+        await Promise.all(childPromises);
+        
+        return parentData as Assembly;
+      } else {
+        // For single assemblies, just proceed as normal
+        const { data, error } = await supabase
+          .from('assemblies')
           .insert({
-            assembly_id: data.id,
-            barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
-          });
-        // Barcode created successfully
-      } catch (barcodeError) {
-        console.error('Barcode generation failed, but assembly was created:', barcodeError);
-        // Intentionally not throwing error, as the assembly was created successfully
+            ...assembly,
+            is_parent: false,
+            original_quantity: 1
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        
+        // Attempt to generate a barcode for single assembly
+        if (data.id) {
+          try {
+            await supabase
+              .from('assembly_barcodes')
+              .insert({
+                assembly_id: data.id,
+                barcode: `ASM-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase()
+              });
+          } catch (barcodeError) {
+            console.error('Barcode generation failed, but assembly was created:', barcodeError);
+          }
+        }
+        
+        return data as Assembly;
       }
+    } catch (error) {
+      console.error('Error creating assembly:', error);
+      throw error;
     }
-    
-    return data as Assembly;
   },
   
   // Update assembly
-  updateAssembly: async (id: string, assembly: Partial<Assembly>): Promise<Assembly> => {
-    const { data, error } = await supabase
-      .from('assemblies')
-      .update(assembly)
-      .eq('id', id)
-      .select()
-      .single();
+  updateAssembly: async (id: string, assemblyData: Partial<Assembly>): Promise<Assembly> => {
+    try {
+      // First check if this is a parent assembly
+      const { data: existingAssembly, error: fetchError } = await supabase
+        .from('assemblies')
+        .select('is_parent')
+        .eq('id', id)
+        .single();
+        
+      if (fetchError) throw fetchError;
       
-    if (error) throw error;
-    return data as Assembly;
+      // Update the assembly
+      const { data, error } = await supabase
+        .from('assemblies')
+        .update(assemblyData)
+        .eq('id', id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // If this is a parent assembly, update all child assemblies with relevant fields
+      if (existingAssembly?.is_parent) {
+        // Create a safe update object manually
+        const childUpdateData: Record<string, any> = {};
+        
+        // Only include properties we want to propagate to children
+        if ('weight' in assemblyData) childUpdateData.weight = assemblyData.weight;
+        if ('width' in assemblyData) childUpdateData.width = assemblyData.width;
+        if ('height' in assemblyData) childUpdateData.height = assemblyData.height;
+        if ('length' in assemblyData) childUpdateData.length = assemblyData.length;
+        if ('painting_spec' in assemblyData) childUpdateData.painting_spec = assemblyData.painting_spec;
+        
+        // Only proceed if there are fields to update
+        if (Object.keys(childUpdateData).length > 0) {
+          const { error: updateError } = await supabase
+            .from('assemblies')
+            .update(childUpdateData)
+            .eq('parent_id', id);
+            
+          if (updateError) throw updateError;
+        }
+      }
+      
+      return data as Assembly;
+    } catch (error) {
+      console.error('Error updating assembly:', error);
+      throw error;
+    }
   },
   
   // Delete assembly
@@ -437,5 +563,100 @@ export const assembliesApi = {
       
     if (error) throw error;
     return data;
+  },
+
+  // Get child assemblies for a parent assembly
+  getChildAssemblies: async (parentId: string): Promise<Assembly[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('assemblies')
+        .select('*')
+        .eq('parent_id', parentId)
+        .order('child_number', { ascending: true });
+        
+      if (error) throw error;
+      return data as Assembly[];
+    } catch (error) {
+      console.error('Error fetching child assemblies:', error);
+      throw error;
+    }
+  },
+
+  // Get a parent assembly with all its child assemblies
+  getAssemblyWithChildren: async (assemblyId: string): Promise<Assembly> => {
+    try {
+      // First get the parent assembly
+      const { data: parentData, error: parentError } = await supabase
+        .from('assemblies')
+        .select(`
+          *,
+          project:project_id (
+            id,
+            name,
+            internal_number
+          )
+        `)
+        .eq('id', assemblyId)
+        .single();
+        
+      if (parentError) throw parentError;
+      
+      // If this is a parent assembly, get all its children
+      if (parentData.is_parent) {
+        const { data: childrenData, error: childrenError } = await supabase
+          .from('assemblies')
+          .select('*')
+          .eq('parent_id', assemblyId)
+          .order('child_number', { ascending: true });
+          
+        if (childrenError) throw childrenError;
+        
+        // Add children to the parent assembly
+        return {
+          ...parentData,
+          children: childrenData
+        } as Assembly;
+      }
+      
+      // If this is not a parent, just return the assembly
+      return parentData as Assembly;
+    } catch (error) {
+      console.error('Error fetching assembly with children:', error);
+      throw error;
+    }
+  },
+
+  // Update all child assemblies with the same data from parent
+  // Used when editing a parent assembly to propagate changes to children
+  updateChildAssemblies: async (parentId: string, updateData: Partial<Assembly>): Promise<void> => {
+    try {
+      // Fields that should be propagated to children
+      const propagatedFields: (keyof Assembly)[] = [
+        'weight', 'width', 'height', 'length', 'painting_spec', 
+        'status', 'start_date', 'end_date', 
+        'quality_control_status', 'quality_control_notes'
+      ];
+      
+      // Create update object with only the fields that should be propagated
+      const childUpdateData = Object.keys(updateData)
+        .filter(key => propagatedFields.includes(key as keyof Assembly))
+        .reduce((obj, key) => {
+          obj[key] = updateData[key as keyof Assembly];
+          return obj;
+        }, {} as any);
+      
+      // Only proceed if there are fields to update
+      if (Object.keys(childUpdateData).length > 0) {
+        const { error } = await supabase
+          .from('assemblies')
+          .update(childUpdateData)
+          .eq('parent_id', parentId);
+          
+        if (error) throw error;
+      }
+    } catch (error) {
+      console.error('Error updating child assemblies:', error);
+      throw error;
+    }
   }
 };

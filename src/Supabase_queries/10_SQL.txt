@@ -1,0 +1,35 @@
+-- Check and add columns for parent-child relationship in assemblies
+DO $$
+BEGIN
+    -- Add parent_id column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='assemblies' AND column_name='parent_id') THEN
+        ALTER TABLE assemblies ADD COLUMN parent_id UUID REFERENCES assemblies(id) ON DELETE CASCADE;
+    END IF;
+
+    -- Add is_parent column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='assemblies' AND column_name='is_parent') THEN
+        ALTER TABLE assemblies ADD COLUMN is_parent BOOLEAN DEFAULT false;
+    END IF;
+
+    -- Add original_quantity column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='assemblies' AND column_name='original_quantity') THEN
+        ALTER TABLE assemblies ADD COLUMN original_quantity INTEGER DEFAULT 1;
+    END IF;
+
+    -- Add child_number column if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_name='assemblies' AND column_name='child_number') THEN
+        ALTER TABLE assemblies ADD COLUMN child_number INTEGER;
+    END IF;
+END $$;
+
+-- Create index if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'assemblies_parent_id_idx') THEN
+        CREATE INDEX assemblies_parent_id_idx ON assemblies (parent_id);
+    END IF;
+END $$;

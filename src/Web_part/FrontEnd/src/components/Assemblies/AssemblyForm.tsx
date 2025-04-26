@@ -1,8 +1,8 @@
-// src/components/Assemblies/AssemblyForm.tsx
+// Updated AssemblyForm.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Assembly, Project, assembliesApi, projectsApi } from '../../lib/projectsApi';
-import { Upload, X, AlertCircle } from 'lucide-react';
+import { Upload, X, AlertCircle, Info } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface AssemblyFormProps {
@@ -45,6 +45,9 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
   const [hasExistingDrawing, setHasExistingDrawing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // New state for showing quantity info tooltip
+  const [showQuantityInfo, setShowQuantityInfo] = useState(false);
 
   // Check if assembly name already exists in this project
   const checkDuplicateAssemblyName = async (projectId: string, name: string, assemblyId?: string) => {
@@ -53,7 +56,8 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
         .from('assemblies')
         .select('id')
         .eq('project_id', projectId)
-        .eq('name', name);
+        .eq('name', name)
+        .is('parent_id', null); // Only check for duplicates against top-level assemblies
       
       if (error) throw error;
       
@@ -307,8 +311,16 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
 
           {/* Quantity */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="text-sm font-medium text-gray-700 mb-1 flex items-center">
               Quantity *
+              <button
+                type="button"
+                className="ml-2 text-gray-400 hover:text-gray-600"
+                onClick={() => setShowQuantityInfo(!showQuantityInfo)}
+                aria-label="Show info about quantity"
+              >
+                <Info size={16} />
+              </button>
             </label>
             <input
               type="number"
@@ -320,6 +332,17 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
               step="1"
               className="w-full p-2 border border-gray-300 rounded-md"
             />
+            {showQuantityInfo && (
+              <div className="mt-2 p-3 bg-blue-50 text-blue-800 text-sm rounded-md">
+                <p>When quantity is greater than 1, individual assemblies will be created.</p>
+                <p className="mt-1">For example, if you create "DOX-12" with quantity 4, the system will create:</p>
+                <ul className="list-disc ml-5 mt-1">
+                  <li>DOX-12 (parent)</li>
+                  <li>DOX-12-1, DOX-12-2, DOX-12-3, DOX-12-4 (individual assemblies)</li>
+                </ul>
+                <p className="mt-1">Each individual assembly will have its own barcode and can be tracked separately.</p>
+              </div>
+            )}
           </div>
 
           {/* Painting Specification */}
