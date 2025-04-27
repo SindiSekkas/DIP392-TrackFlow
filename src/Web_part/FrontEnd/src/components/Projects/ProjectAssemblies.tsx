@@ -1,8 +1,8 @@
-// Improved ProjectAssemblies.tsx with smooth group expansion
+// Improved ProjectAssemblies.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown, ChevronDown, Package } from 'lucide-react';
+  Plus, Eye, Edit, Trash2, Settings, Barcode, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { Assembly, assembliesApi, projectsApi } from '../../lib/projectsApi';
 import { formatWeight, formatDate, formatDimension, naturalSort } from '../../utils/formatters';
 import { useColumnSettings } from '../../contexts/ColumnSettingsContext';
@@ -389,102 +389,6 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
     );
   };
 
-  // Render a child assembly row
-  const renderChildAssemblyRow = (assembly: Assembly) => {
-    return (
-      <tr key={assembly.id} className="hover:bg-gray-50 bg-blue-50">
-        {/* Render cells for all visible columns */}
-        {visibleColumns.map(column => {
-          switch (column.id) {
-            case 'name':
-              return (
-                <td key={column.id} className="p-3 pl-10">
-                  <div className="flex items-center">
-                    <Package size={14} className="text-blue-400 mr-2" />
-                    {assembly.name}
-                  </div>
-                </td>
-              );
-            case 'weight':
-              return <td key={column.id} className="p-3">{formatWeight(assembly.weight)}</td>;
-            case 'quantity':
-              return <td key={column.id} className="p-3">1</td>; // Child assemblies always have quantity 1
-            case 'status':
-              return (
-                <td key={column.id} className="p-3">
-                  <span
-                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      assembly.status === 'Waiting'
-                        ? 'bg-blue-100 text-blue-800'
-                        : assembly.status === 'In Production'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : assembly.status === 'Welding'
-                        ? 'bg-orange-100 text-orange-800'
-                        : assembly.status === 'Painting'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-green-100 text-green-800'
-                    }`}
-                  >
-                    {assembly.status}
-                  </span>
-                </td>
-              );
-            case 'width':
-              return <td key={column.id} className="p-3">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
-            case 'height':
-              return <td key={column.id} className="p-3">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
-            case 'length':
-              return <td key={column.id} className="p-3">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
-            case 'painting_spec':
-              return <td key={column.id} className="p-3">{assembly.painting_spec || '—'}</td>;
-            case 'start_date':
-              return <td key={column.id} className="p-3">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
-            case 'end_date':
-              return <td key={column.id} className="p-3">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
-            case 'quality_control_status':
-              return <td key={column.id} className="p-3">{assembly.quality_control_status || '—'}</td>;
-            default:
-              return <td key={column.id} className="p-3">—</td>;
-          }
-        })}
-        
-        {/* Actions for child assemblies - show barcode button */}
-        <td className="p-3">
-          <div className="flex justify-center space-x-2">
-            <button
-              onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'project' } })}
-              title="View"
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <Eye size={16} className="text-blue-600" />
-            </button>
-            <button
-              onClick={() => navigate(`/dashboard/assemblies/${assembly.id}/edit`)}
-              title="Edit"
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <Edit size={16} className="text-yellow-600" />
-            </button>
-            <button
-              onClick={() => handleDeleteAssembly(assembly.id as string)}
-              title="Delete"
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <Trash2 size={16} className="text-red-600" />
-            </button>
-            <button
-              onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name)}
-              title="Print Barcode"
-              className="p-1 rounded-full hover:bg-gray-200"
-            >
-              <Barcode size={16} className="text-green-600" />
-            </button>
-          </div>
-        </td>
-      </tr>
-    );
-  };
-
   return (
     <div className="mt-8">
       <div className="flex justify-between items-center mb-4">
@@ -685,39 +589,106 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                     </td>
                   </tr>
                   
-                  {/* Child assemblies container with smooth height transition */}
-                  {assembly.is_parent && (
-                    <tr className="child-assemblies-container">
-                      <td colSpan={visibleColumns.length + 1} className="p-0 border-0">
-                        {/* We use CSS max-height transition for smooth animation */}
-                        <div 
-                          className="transition-all duration-300 ease-in-out overflow-hidden"
-                          style={{ 
-                            maxHeight: expandedAssemblies[assembly.id as string] 
-                              ? `${(childAssemblies[assembly.id as string]?.length || 0) * 53}px` 
-                              : '0',
-                            opacity: expandedAssemblies[assembly.id as string] ? 1 : 0
-                          }}
-                        >
-                          <table className="w-full">
-                            <tbody>
-                              {/* Child assemblies rows - only rendered when data is available */}
-                              {childAssemblies[assembly.id as string]?.map(childAssembly => 
-                                renderChildAssemblyRow(childAssembly)
-                              )}
-                              
-                              {/* Show loading placeholder if we're still loading children */}
-                              {loadingChildrenFor[assembly.id as string] && !childAssemblies[assembly.id as string] && (
-                                <tr className="bg-gray-50">
-                                  <td colSpan={visibleColumns.length + 1} className="p-3 text-center">
-                                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
-                                    <span className="text-sm text-gray-500">Loading child assemblies...</span>
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                  {/* Render child assemblies directly in the main tbody when expanded */}
+                  {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
+                    childAssemblies[assembly.id as string]?.map(childAssembly => (
+                      <tr key={childAssembly.id} className="hover:bg-gray-50 bg-blue-50">
+                        {/* Dynamic columns based on preferences */}
+                        {visibleColumns.map(column => {
+                          switch (column.id) {
+                            case 'name':
+                              return (
+                                <td key={column.id} className="p-3">
+                                  <div className="flex items-center pl-8">
+                                    <span>{childAssembly.name}</span>
+                                  </div>
+                                </td>
+                              );
+                            case 'weight':
+                              return <td key={column.id} className="p-3">{formatWeight(childAssembly.weight)}</td>;
+                            case 'quantity':
+                              return <td key={column.id} className="p-3">1</td>; // Child assemblies always have quantity 1
+                            case 'status':
+                              return (
+                                <td key={column.id} className="p-3">
+                                  <span
+                                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                      childAssembly.status === 'Waiting'
+                                        ? 'bg-blue-100 text-blue-800'
+                                        : childAssembly.status === 'In Production'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : childAssembly.status === 'Welding'
+                                        ? 'bg-orange-100 text-orange-800'
+                                        : childAssembly.status === 'Painting'
+                                        ? 'bg-purple-100 text-purple-800'
+                                        : 'bg-green-100 text-green-800'
+                                    }`}
+                                  >
+                                    {childAssembly.status}
+                                  </span>
+                                </td>
+                              );
+                            case 'width':
+                              return <td key={column.id} className="p-3">{childAssembly.width ? formatDimension(childAssembly.width) : '—'}</td>;
+                            case 'height':
+                              return <td key={column.id} className="p-3">{childAssembly.height ? formatDimension(childAssembly.height) : '—'}</td>;
+                            case 'length':
+                              return <td key={column.id} className="p-3">{childAssembly.length ? formatDimension(childAssembly.length) : '—'}</td>;
+                            case 'painting_spec':
+                              return <td key={column.id} className="p-3">{childAssembly.painting_spec || '—'}</td>;
+                            case 'start_date':
+                              return <td key={column.id} className="p-3">{childAssembly.start_date ? formatDate(childAssembly.start_date as string) : '—'}</td>;
+                            case 'end_date':
+                              return <td key={column.id} className="p-3">{childAssembly.end_date ? formatDate(childAssembly.end_date as string) : '—'}</td>;
+                            case 'quality_control_status':
+                              return <td key={column.id} className="p-3">{childAssembly.quality_control_status || '—'}</td>;
+                            default:
+                              return <td key={column.id} className="p-3">—</td>;
+                          }
+                        })}
+                        
+                        <td className="p-3">
+                          <div className="flex justify-center space-x-2">
+                            <button
+                              onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}`, { state: { from: 'project' } })}
+                              title="View"
+                              className="p-1 rounded-full hover:bg-gray-200"
+                            >
+                              <Eye size={16} className="text-blue-600" />
+                            </button>
+                            <button
+                              onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}/edit`)}
+                              title="Edit"
+                              className="p-1 rounded-full hover:bg-gray-200"
+                            >
+                              <Edit size={16} className="text-yellow-600" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAssembly(childAssembly.id as string)}
+                              title="Delete"
+                              className="p-1 rounded-full hover:bg-gray-200"
+                            >
+                              <Trash2 size={16} className="text-red-600" />
+                            </button>
+                            <button
+                              onClick={() => handlePrintSingleBarcode(childAssembly.id as string, childAssembly.name)}
+                              title="Print Barcode"
+                              className="p-1 rounded-full hover:bg-gray-200"
+                            >
+                              <Barcode size={16} className="text-green-600" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  }
+                  
+                  {/* Show loading placeholder if we're still loading children */}
+                  {assembly.is_parent && expandedAssemblies[assembly.id as string] && loadingChildrenFor[assembly.id as string] && !childAssemblies[assembly.id as string] && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={visibleColumns.length + 1} className="p-3 text-center">
+                        <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
+                        <span className="text-sm text-gray-500">Loading child assemblies...</span>
                       </td>
                     </tr>
                   )}
