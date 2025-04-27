@@ -11,7 +11,8 @@ import {
   Eye,
   Clock,
   CheckCircle,
-  Printer
+  Printer,
+  Info as InfoIcon // Added InfoIcon import
 } from 'lucide-react';
 import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
@@ -395,6 +396,21 @@ const AssemblyDetailsPage: React.FC = () => {
               
               {/* PDF Viewer with fixed height and scrollable content */}
               <div className="mt-3 border border-gray-300 rounded overflow-hidden">
+                {/* Indicator for inherited drawings */}
+                {drawing?.inherited_from_parent && (
+                  <div className="bg-blue-50 text-blue-800 px-3 py-1 text-sm flex items-center">
+                    <InfoIcon size={16} className="mr-2" />
+                    <span>Drawing inherited from parent assembly</span>
+                    {drawing.parent_id && (
+                      <Link 
+                        to={`/dashboard/assemblies/${drawing.parent_id}`}
+                        className="ml-2 underline hover:text-blue-900"
+                      >
+                        View parent
+                      </Link>
+                    )}
+                  </div>
+                )}
                 <iframe
                   src={`${getFileUrl(drawing.file_path)}#toolbar=0`}
                   width="100%"

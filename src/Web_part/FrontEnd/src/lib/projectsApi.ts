@@ -57,6 +57,9 @@ export interface AssemblyDrawing {
   file_size: number;
   content_type: string;
   uploaded_at?: string;
+  // Fields for inheritance tracking
+  inherited_from_parent?: boolean;
+  parent_id?: string;
 }
 
 export interface ProjectDrawing {
@@ -499,16 +502,57 @@ export const assembliesApi = {
     }
   },
   
-  // Get assembly drawing
+  // Get assembly drawing with parent fallback
   getAssemblyDrawing: async (assemblyId: string): Promise<AssemblyDrawing | null> => {
-    const { data, error } = await supabase
-      .from('assembly_drawings')
-      .select('*')
-      .eq('assembly_id', assemblyId)
-      .maybeSingle();
+    try {
+      // First try to find assembly's own drawing
+      const { data, error } = await supabase
+        .from('assembly_drawings')
+        .select('*')
+        .eq('assembly_id', assemblyId)
+        .maybeSingle();
+        
+      if (error) throw error;
       
-    if (error) throw error;
-    return data as AssemblyDrawing | null;
+      // If drawing found, return it
+      if (data) return data as AssemblyDrawing;
+      
+      // If drawing not found, check if this is a child assembly
+      const { data: assembly, error: assemblyError } = await supabase
+        .from('assemblies')
+        .select('parent_id')
+        .eq('id', assemblyId)
+        .single();
+        
+      if (assemblyError || !assembly || !assembly.parent_id) {
+        // No parent_id or failed to get assembly data
+        return null;
+      }
+      
+      // Get parent assembly drawing
+      const { data: parentDrawing, error: parentError } = await supabase
+        .from('assembly_drawings')
+        .select('*')
+        .eq('assembly_id', assembly.parent_id)
+        .maybeSingle();
+        
+      if (parentError) throw parentError;
+      
+      // If parent has a drawing, add field indicating it's inherited
+      if (parentDrawing) {
+        return {
+          ...parentDrawing,
+          inherited_from_parent: true,
+          parent_id: assembly.parent_id
+        } as AssemblyDrawing;
+      }
+      
+      // No drawing found
+      return null;
+    } catch (error) {
+      console.error('Error fetching assembly drawing with parent fallback:', error);
+      throw error;
+    }
   },
   
   // Delete assembly drawing
