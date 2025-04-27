@@ -745,7 +745,7 @@ const AssembliesPage: React.FC = () => {
                 {getSortedAssemblies().map((assembly) => (
                   <React.Fragment key={assembly.id}>
                     {/* Parent assembly row */}
-                    <tr className={`hover:bg-gray-50 ${assembly.is_parent ? 'bg-gray-50' : ''}`}>
+                    <tr className="hover:bg-gray-50">
                       {/* Dynamic columns based on preferences */}
                       {visibleColumns.map(column => {
                         // Render different content based on column id
