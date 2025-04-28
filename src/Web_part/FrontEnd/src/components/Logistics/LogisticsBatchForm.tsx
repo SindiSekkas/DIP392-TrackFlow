@@ -503,11 +503,6 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
                 </div>
               )}
             </div>
-            {formData.shipping_company_id && (
-              <p className="text-xs text-green-600 mt-1">
-                Selected shipping company: {shippingCompanies.find(c => c.id === formData.shipping_company_id)?.name}
-              </p>
-            )}
           </div>
 
           {/* Delivery Address */}
