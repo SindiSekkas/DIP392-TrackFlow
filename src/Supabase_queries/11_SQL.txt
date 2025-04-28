@@ -1,0 +1,6 @@
+CREATE TABLE logistics_batch_barcodes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    batch_id UUID NOT NULL REFERENCES logistics_batches(id) ON DELETE CASCADE,
+    barcode TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
