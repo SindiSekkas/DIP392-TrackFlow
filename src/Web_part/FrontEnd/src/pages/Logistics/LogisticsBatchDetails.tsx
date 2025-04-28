@@ -14,7 +14,8 @@ import {
   Truck,
   X,
   Clock,
-  Box
+  Box,
+  Printer
 } from 'lucide-react';
 import { 
   LogisticsBatch, 
@@ -25,6 +26,8 @@ import {
 import { Assembly, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
 import { supabase } from '../../lib/supabase';
+import JsBarcode from 'jsbarcode';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
 
 const LogisticsBatchDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -49,6 +52,11 @@ const LogisticsBatchDetails: React.FC = () => {
   const [barcodeInput, setBarcodeInput] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Barcode print modal state
+  const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const barcodeContainerRef = useRef<HTMLDivElement>(null);
+  
   // Load batch details
   useEffect(() => {
     const fetchBatchData = async () => {
@@ -63,6 +71,10 @@ const LogisticsBatchDetails: React.FC = () => {
         // Fetch batch details
         const batchData = await logisticsApi.getBatch(id);
         setBatch(batchData);
+        
+        // Get batch barcode if exists
+        const barcodeData = await logisticsApi.getBatchBarcode(id);
+        setBarcodeData(barcodeData);
         
         // Fetch batch assemblies
         const assembliesData = await logisticsApi.getBatchAssemblies(id);
@@ -83,6 +95,52 @@ const LogisticsBatchDetails: React.FC = () => {
 
     fetchBatchData();
   }, [id, navigate]);
+
+  // Add this effect to render the barcode when barcodeData changes
+  useEffect(() => {
+    if (barcodeData && barcodeContainerRef.current) {
+      try {
+        // Clear previous barcode
+        barcodeContainerRef.current.innerHTML = '<svg class="barcode"></svg>';
+        const barcodeSvg = barcodeContainerRef.current.querySelector('.barcode');
+        
+        if (barcodeSvg) {
+          JsBarcode(barcodeSvg, barcodeData.barcode, {
+            format: "CODE128",
+            width: 2,
+            height: 50,
+            displayValue: true,
+            fontSize: 14,
+            margin: 10
+          });
+        }
+      } catch (err) {
+        console.error('Error rendering barcode:', err);
+      }
+    }
+  }, [barcodeData]);
+
+  // Add these handler functions
+  const handleGenerateBarcode = async () => {
+    if (!batch?.id) return;
+    
+    try {
+      setLoading(true);
+      const data = await logisticsApi.generateBatchBarcode(batch.id);
+      setBarcodeData(data);
+    } catch (err) {
+      console.error('Error generating barcode:', err);
+      setError('Failed to generate barcode. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePrintBarcode = () => {
+    if (batch && barcodeData) {
+      setShowPrintModal(true);
+    }
+  };
 
   // Calculate total weight from assemblies
   useEffect(() => {
@@ -502,6 +560,37 @@ const LogisticsBatchDetails: React.FC = () => {
               </div>
             )}
             
+            {/* Barcode Section */}
+            <div>
+              <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Batch Barcode</h3>
+              <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                {barcodeData ? (
+                  <div className="flex flex-col items-center">
+                    <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
+                    <div className="text-xs text-gray-500">{barcodeData.barcode}</div>
+                    <div className="mt-2 flex space-x-2">
+                      <button
+                        onClick={handlePrintBarcode}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        <Printer size={14} className="inline mr-1" /> Print
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-2">
+                    <p className="text-gray-500 mb-2">No barcode generated yet</p>
+                    <button
+                      onClick={handleGenerateBarcode}
+                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                    >
+                      Generate Barcode
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <div>
               <h3 className="text-sm uppercase tracking-wider text-gray-500 font-medium mb-3">Shipping Documents</h3>
               
@@ -860,6 +949,19 @@ const LogisticsBatchDetails: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Barcode Print Modal */}
+      {showPrintModal && batch && barcodeData && (
+        <BarcodePrintView 
+          barcodes={[{
+            id: batch.id || '',
+            barcode: barcodeData.barcode,
+            assemblyName: batch.batch_number, // Using batch number as the name
+            projectName: batch.project?.name || batch.client?.company_name || 'Logistics Batch'
+          }]}
+          onClose={() => setShowPrintModal(false)}
+        />
       )}
     </div>
   );

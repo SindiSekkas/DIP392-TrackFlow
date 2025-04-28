@@ -369,5 +369,35 @@ export const logisticsApi = {
     
     if (assemblyError) return null;
     return assembly as Assembly;
+  },
+
+  // Get barcode for a batch
+  getBatchBarcode: async (batchId: string): Promise<{id: string, barcode: string} | null> => {
+    const { data, error } = await supabase
+      .from('logistics_batch_barcodes')
+      .select('id, barcode')
+      .eq('batch_id', batchId)
+      .maybeSingle();
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Generate barcode for a batch
+  generateBatchBarcode: async (batchId: string): Promise<{id: string, barcode: string}> => {
+    // Generate a unique barcode
+    const barcode = `BATCH-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`.toUpperCase();
+    
+    const { data, error } = await supabase
+      .from('logistics_batch_barcodes')
+      .insert({
+        batch_id: batchId,
+        barcode: barcode
+      })
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
   }
 };
