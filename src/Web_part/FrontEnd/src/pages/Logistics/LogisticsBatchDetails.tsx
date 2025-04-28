@@ -335,17 +335,6 @@ const LogisticsBatchDetails: React.FC = () => {
     try {
       setAddingAssemblies(true);
       
-      // Add each assembly to the batch
-      const addPromises = selectedAssemblies.map(assembly => 
-        logisticsApi.addAssemblyToBatch({
-          batch_id: batch.id as string,
-          assembly_id: assembly.id as string,
-          assembly_status: 'Completed' // When added to a shipment, assembly is marked as completed
-        })
-      );
-      
-      const newBatchAssemblies = await Promise.all(addPromises);
-      
       // Update assemblies status in the main table
       const updatePromises = selectedAssemblies.map(assembly =>
         assembliesApi.updateAssembly(assembly.id as string, { status: 'Completed' })
