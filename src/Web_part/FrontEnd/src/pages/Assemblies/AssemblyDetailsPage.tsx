@@ -11,7 +11,9 @@ import {
   Eye,
   Clock,
   CheckCircle,
-  Printer
+  Printer,
+  Info as InfoIcon,
+  AlertCircle // Added AlertCircle import
 } from 'lucide-react';
 import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
@@ -29,6 +31,7 @@ const AssemblyDetailsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showParentWarning, setShowParentWarning] = useState(false); // New state variable
   const barcodeContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle back navigation
@@ -136,6 +139,15 @@ const AssemblyDetailsPage: React.FC = () => {
   // Generate barcode
   const handleGenerateBarcode = async () => {
     if (!assembly?.id) return;
+    
+    // If this is a parent assembly, show a warning first
+    if (assembly.is_parent && !showParentWarning) {
+      setShowParentWarning(true);
+      return;
+    }
+    
+    // Reset warning state if proceeding
+    setShowParentWarning(false);
     
     try {
       setLoading(true);
@@ -302,7 +314,7 @@ const AssemblyDetailsPage: React.FC = () => {
               )}
             </div>
             
-            {/* Barcode Section - Moved to left column */}
+            {/* Barcode Section within the layout */}
             <div className="mb-4 pb-4 border-b border-gray-200">
               <p className="text-sm font-medium text-gray-700 mb-2">Assembly Barcode</p>
               <div className="bg-white rounded p-2">
@@ -322,12 +334,38 @@ const AssemblyDetailsPage: React.FC = () => {
                 ) : (
                   <div className="text-center py-2">
                     <p className="text-gray-500 mb-2">No barcode generated yet</p>
-                    <button
-                      onClick={handleGenerateBarcode}
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                    >
-                      Generate Barcode
-                    </button>
+                    
+                    {/* Show warning if it's a parent assembly */}
+                    {assembly.is_parent && showParentWarning ? (
+                      <div className="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+                        <p className="mb-2">
+                          <AlertCircle size={16} className="inline-block mr-1" />
+                          Parent assemblies typically don't need barcodes since each child has its own.
+                        </p>
+                        <p className="text-sm mb-2">Do you still want to create a barcode?</p>
+                        <div className="flex justify-center space-x-2">
+                          <button
+                            onClick={() => setShowParentWarning(false)}
+                            className="px-3 py-1 text-sm bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleGenerateBarcode}
+                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                          >
+                            Create Anyway
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={handleGenerateBarcode}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Generate Barcode
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -395,6 +433,21 @@ const AssemblyDetailsPage: React.FC = () => {
               
               {/* PDF Viewer with fixed height and scrollable content */}
               <div className="mt-3 border border-gray-300 rounded overflow-hidden">
+                {/* Indicator for inherited drawings */}
+                {drawing?.inherited_from_parent && (
+                  <div className="bg-blue-50 text-blue-800 px-3 py-1 text-sm flex items-center">
+                    <InfoIcon size={16} className="mr-2" />
+                    <span>Drawing inherited from parent assembly</span>
+                    {drawing.parent_id && (
+                      <Link 
+                        to={`/dashboard/assemblies/${drawing.parent_id}`}
+                        className="ml-2 underline hover:text-blue-900"
+                      >
+                        View parent
+                      </Link>
+                    )}
+                  </div>
+                )}
                 <iframe
                   src={`${getFileUrl(drawing.file_path)}#toolbar=0`}
                   width="100%"

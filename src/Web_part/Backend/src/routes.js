@@ -1,17 +1,28 @@
-// src/routes.js
+// src/Web_part/Backend/src/routes.js
 import express from 'express';
 import { userController } from './controllers/userController.js';
 import { nfcCardController } from './controllers/nfcCardController.js';
 import { assemblyBarcodeController } from './controllers/assemblyBarcodeController.js';
 import { assemblyStatusController } from './controllers/assemblyStatusController.js';
+import { mobileApiController } from './controllers/mobileApiController.js';
+import { mobileLogisticsController } from './controllers/mobileLogisticsController.js'; // Import new controller
 import { authenticate, authorize } from './middleware/auth.js';
 import { 
   validate, 
   userValidationRules,
   nfcCardValidationRules,
   assemblyBarcodeValidationRules,
-  assemblyStatusValidationRules
+  assemblyStatusValidationRules,
+  logisticsBarcodeValidationRules // New validation rules
 } from './middleware/validation.js';
+
+// Import mobile authentication middleware
+import { 
+  mobileAuthenticate, 
+  verifyNfcCard, 
+  mobileAuthorize,
+  logMobileOperation // Import the logging middleware
+} from './middleware/mobileAuth.js';
 
 const router = express.Router();
 
@@ -68,9 +79,6 @@ router.post(
   userController.resetPassword
 );
 
-// Import mobile authentication middleware
-import { mobileAuthenticate, verifyNfcCard, mobileAuthorize } from './middleware/mobileAuth.js';
-
 // NFC Card Routes
 // Validate an NFC card (for mobile app - no auth required for initial validation)
 router.post(
@@ -121,6 +129,41 @@ mobileRouter.post(
   verifyNfcCard,
   validate(assemblyStatusValidationRules.updateStatus),
   assemblyStatusController.updateStatus
+);
+
+// Mobile Logistics API Routes - NEW
+mobileRouter.post(
+  '/logistics/batches/validate',
+  mobileAuthenticate,
+  validate(logisticsBarcodeValidationRules.validateBatchBarcode),
+  logMobileOperation('batch_barcode_validation'),
+  mobileLogisticsController.validateBatchBarcode
+);
+
+mobileRouter.post(
+  '/logistics/batches/add-assembly',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(logisticsBarcodeValidationRules.addAssemblyToBatch),
+  logMobileOperation('add_assembly_to_batch'),
+  mobileLogisticsController.addAssemblyToBatch
+);
+
+mobileRouter.post(
+  '/logistics/batches/:batchId/assemblies',
+  mobileAuthenticate,
+  validate(logisticsBarcodeValidationRules.getBatchAssemblies),
+  logMobileOperation('get_batch_assemblies'),
+  mobileLogisticsController.getBatchAssemblies
+);
+
+mobileRouter.delete(
+  '/logistics/batch-assemblies/:batchAssemblyId',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(logisticsBarcodeValidationRules.removeAssemblyFromBatch),
+  logMobileOperation('remove_assembly_from_batch'),
+  mobileLogisticsController.removeAssemblyFromBatch
 );
 
 // Web API routes for barcode/status management

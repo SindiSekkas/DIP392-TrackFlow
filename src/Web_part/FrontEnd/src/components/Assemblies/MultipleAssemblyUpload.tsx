@@ -742,14 +742,15 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   // Add this function to check for duplicate assembly names
   const checkDuplicateAssemblyName = async (projectId: string, name: string): Promise<boolean> => {
     try {
+      // Only check for duplicates against top-level assemblies that aren't children
       const { data, error } = await supabase
         .from('assemblies')
         .select('id')
         .eq('project_id', projectId)
-        .eq('name', name);
+        .eq('name', name)
+        .is('parent_id', null); // Only check top-level assemblies
       
       if (error) throw error;
-      
       return data && data.length > 0;
     } catch (err) {
       console.error('Error checking duplicate assembly name:', err);
@@ -764,6 +765,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     const duplicates: string[] = [];
     
     rows.forEach(row => {
+      // Format the name based on quantity for checking
       const name = row.name.trim();
       if (name) {
         if (nameMap.has(name)) {
@@ -819,29 +821,64 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
         pdfBytes = await pdfFile.arrayBuffer();
       }
       
-      // Create assemblies from uploaded rows and assign PDF pages
-      const creationPromises = uploadedRows.map(async (row, index) => {
-        // First create the assembly
+      // Create assemblies from uploaded rows
+      const creationPromises = uploadedRows.map(async (row) => {
+        // Create the assembly data object with parent-child support
         const assemblyData: Partial<Assembly> = {
           project_id: effectiveProjectId,
           name: row.name,
           weight: row.weight || 0,
-          quantity: row.quantity,
+          quantity: row.quantity,  // This will trigger parent-child creation if > 1
           status: row.status,
-          width: row.width && row.width > 0 ? row.width : null,  // Convert 0 to null
-          height: row.height && row.height > 0 ? row.height : null,  // Convert 0 to null
-          length: row.length && row.length > 0 ? row.length : null,  // Convert 0 to null
+          width: row.width && row.width > 0 ? row.width : null,
+          height: row.height && row.height > 0 ? row.height : null,
+          length: row.length && row.length > 0 ? row.length : null,
           painting_spec: row.painting_spec
         };
         
+        // Create the assembly (parent if quantity > 1, regular assembly if quantity = 1)
         const assembly = await assembliesApi.createAssembly(assemblyData as Assembly);
         
-        // If we have a PDF file and the current page index is valid, extract the page and upload it
-        if (pdfBytes && pdfDocument && index < totalPages) {
+        // If we have a PDF file and are creating a parent with children,
+        // we need to upload the PDF to the individual child assemblies
+        if (pdfBytes && pdfDocument && row.quantity > 1 && assembly.is_parent) {
           try {
-            // Extract the specific page using pdf-lib
+            // Get all child assemblies for this parent
+            const children = await assembliesApi.getChildAssemblies(assembly.id as string);
+            
+            // For each child assembly, extract and upload the corresponding PDF page
+            for (let i = 0; i < children.length && i < totalPages; i++) {
+              const childAssembly = children[i];
+              const index = i; // Page index in the PDF
+              
+              // Extract the specific page using pdf-lib
+              const srcDoc = await PDFDocument.load(pdfBytes);
+              const pageIndices = [index % totalPages]; // Use modulo to handle more children than pages
+              const newPdfDoc = await PDFDocument.create();
+              const copiedPages = await newPdfDoc.copyPages(srcDoc, pageIndices);
+              copiedPages.forEach(page => newPdfDoc.addPage(page));
+              
+              // Create a new PDF with just this page
+              const singlePageBytes = await newPdfDoc.save();
+              
+              // Create file from the single page
+              const pageFilename = `assembly_${childAssembly.id}_drawing_page_${index + 1}.pdf`;
+              const singlePageFile = new File([singlePageBytes], pageFilename, { type: 'application/pdf' });
+              
+              // Upload the single page as the assembly drawing
+              await assembliesApi.uploadAssemblyDrawing(childAssembly.id as string, singlePageFile);
+            }
+          } catch (error) {
+            console.error(`Error processing PDF for parent assembly ${assembly.id}:`, error);
+            // Continue with other assemblies even if one fails
+          }
+        } 
+        // If quantity = 1 or we're just uploading to a regular assembly
+        else if (pdfBytes && pdfDocument && totalPages > 0) {
+          try {
+            // Extract the first page
             const srcDoc = await PDFDocument.load(pdfBytes);
-            const pageIndices = [index]; // Get only the current page
+            const pageIndices = [0]; // Just get the first page
             const newPdfDoc = await PDFDocument.create();
             const copiedPages = await newPdfDoc.copyPages(srcDoc, pageIndices);
             copiedPages.forEach(page => newPdfDoc.addPage(page));
@@ -850,15 +887,13 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
             const singlePageBytes = await newPdfDoc.save();
             
             // Create file from the single page
-            const pageFilename = `assembly_${assembly.id}_drawing_page_${index + 1}.pdf`;
+            const pageFilename = `assembly_${assembly.id}_drawing.pdf`;
             const singlePageFile = new File([singlePageBytes], pageFilename, { type: 'application/pdf' });
             
             // Upload the single page as the assembly drawing
             await assembliesApi.uploadAssemblyDrawing(assembly.id as string, singlePageFile);
-            console.log(`Uploaded PDF page ${index + 1} for assembly ${assembly.id}`);
           } catch (error) {
-            console.error(`Error processing PDF page ${index + 1} for assembly ${assembly.id}:`, error);
-            // Continue with other assemblies even if one fails
+            console.error(`Error processing PDF for assembly ${assembly.id}:`, error);
           }
         }
         
@@ -871,7 +906,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       // Set success state
       showNotification(
         'success',
-        `Successfully created ${uploadedRows.length} assemblies. Redirecting...`,
+        `Successfully created assemblies. Redirecting...`,
         0
       );
       

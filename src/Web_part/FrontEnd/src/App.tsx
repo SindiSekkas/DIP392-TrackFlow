@@ -25,6 +25,10 @@ import ClientDetailsPage from './pages/Clients/ClientDetailsPage';
 import CreateClientPage from './pages/Clients/CreateClientPage';
 import EditClientPage from './pages/Clients/EditClientPage';
 import NFCCardManagement from './pages/NFCCards/NFCCardManagement';
+import LogisticsPage from './pages/Logistics/LogisticsPage';
+import LogisticsBatchDetails from './pages/Logistics/LogisticsBatchDetails';
+import CreateLogisticsBatchPage from './pages/Logistics/CreateLogisticsBatchPage';
+import EditLogisticsBatchPage from './pages/Logistics/EditLogisticsBatchPage';
 
 // Placeholder for future components - replace with actual components when created
 const TeamComponent = () => <div className="p-4">Team Component</div>;
@@ -199,6 +203,30 @@ function App() {
                                 </ProtectedRoute>
                             } />
                             
+                            <Route path="/dashboard/logistics" element={
+                                <Layout>
+                                    <LogisticsPage />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/logistics/create" element={
+                                <Layout>
+                                    <CreateLogisticsBatchPage />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/logistics/:id" element={
+                                <Layout>
+                                    <LogisticsBatchDetails />
+                                </Layout>
+                            } />
+
+                            <Route path="/dashboard/logistics/:id/edit" element={
+                                <Layout>
+                                    <EditLogisticsBatchPage />
+                                </Layout>
+                            } />
+
                             {/* Error routes */}
                             <Route path="/forbidden" element={<ForbiddenPage />} /> {/* 403 - User authenticated but lacks permission */}
                             <Route path="/server-error" element={<ServerErrorPage />} /> {/* 500 - Server error */}

@@ -1,0 +1,68 @@
+-- Enable UUID extension if not enabled already
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Table for shipping companies
+CREATE TABLE shipping_companies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL UNIQUE,
+    contact_info TEXT,
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Main table for logistics batches
+CREATE TABLE logistics_batches (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    batch_number TEXT NOT NULL UNIQUE,
+    client_id UUID REFERENCES clients(id),
+    project_id UUID REFERENCES projects(id),
+    shipping_company_id UUID REFERENCES shipping_companies(id),
+    delivery_address TEXT NOT NULL,
+    total_weight DECIMAL,
+    status TEXT NOT NULL CHECK (status IN ('Pending', 'In Transit', 'Delivered', 'Cancelled')),
+    shipment_date DATE,
+    estimated_arrival DATE,
+    actual_arrival DATE,
+    notes TEXT,
+    created_by UUID REFERENCES auth.users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table for mapping assemblies to logistics batches
+CREATE TABLE logistics_batch_assemblies (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    batch_id UUID NOT NULL REFERENCES logistics_batches(id) ON DELETE CASCADE,
+    assembly_id UUID NOT NULL REFERENCES assemblies(id),
+    added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    added_by UUID REFERENCES auth.users(id),
+    assembly_status TEXT NOT NULL,
+    UNIQUE(batch_id, assembly_id)
+);
+
+-- Table for shipping documents
+CREATE TABLE logistics_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    batch_id UUID NOT NULL REFERENCES logistics_batches(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size BIGINT NOT NULL,
+    content_type TEXT NOT NULL,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    uploaded_by UUID REFERENCES auth.users(id)
+);
+
+-- Add some default shipping companies
+INSERT INTO shipping_companies (name, contact_info)
+VALUES 
+    ('DHL Express', 'Phone: +1-800-123-4567, Email: support@dhl.com'),
+    ('FedEx', 'Phone: +1-800-463-3339, Email: support@fedex.com'),
+    ('UPS', 'Phone: +1-800-742-5877, Email: support@ups.com'),
+    ('DB Schenker', 'Phone: +1-800-225-5229, Email: info@dbschenker.com'),
+    ('Maersk', 'Phone: +1-800-321-8807, Email: support@maersk.com');
+
+-- Add trigger for updated_at
+CREATE TRIGGER update_logistics_batches_updated_at
+BEFORE UPDATE ON logistics_batches
+FOR EACH ROW
+EXECUTE FUNCTION update_updated_at_column();
