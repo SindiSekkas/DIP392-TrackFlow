@@ -553,7 +553,10 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
               {getSortedAssemblies().map((assembly) => (
                 <React.Fragment key={assembly.id}>
                   {/* Parent assembly row */}
-                  <tr className="hover:bg-gray-50">
+                  <tr 
+                    className={`hover:bg-gray-50 ${assembly.is_parent ? 'cursor-pointer' : ''}`}
+                    onClick={assembly.is_parent ? () => toggleExpandAssembly(assembly.id as string) : undefined}
+                  >
                     {/* Dynamic columns based on preferences */}
                     {visibleColumns.map(column => {
                       // Render different content based on column id
@@ -564,7 +567,10 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                               <div className="flex items-center">
                                 {assembly.is_parent ? (
                                   <button
-                                    onClick={() => toggleExpandAssembly(assembly.id as string)}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent row click event
+                                      toggleExpandAssembly(assembly.id as string);
+                                    }}
                                     className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none transition-transform duration-200"
                                     style={{ 
                                       transform: expandedAssemblies[assembly.id as string] ? 'rotate(0deg)' : 'rotate(-90deg)'
@@ -632,7 +638,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                     })}
                     
                     <td className="p-3">
-                      <div className="flex justify-center space-x-2">
+                      <div className="flex justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'project' } })}
                           title="View"
@@ -669,37 +675,30 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                   {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
                     childAssemblies[assembly.id as string]?.map(childAssembly => (
                       <tr key={childAssembly.id} className="hover:bg-gray-50">
-                        {/* Dynamic columns based on preferences */}
                         {visibleColumns.map(column => {
                           switch (column.id) {
                             case 'name':
                               return (
-                                <td key={column.id} className="p-3">
+                                <td key={column.id} className="p-3 align-middle">
                                   <div className="flex items-center pl-8">
                                     <span>{childAssembly.name}</span>
                                   </div>
                                 </td>
                               );
                             case 'weight':
-                              return <td key={column.id} className="p-3">{formatWeight(childAssembly.weight)}</td>;
+                              return <td key={column.id} className="p-3 align-middle">{formatWeight(childAssembly.weight)}</td>;
                             case 'quantity':
-                              return <td key={column.id} className="p-3">1</td>; // Child assemblies always have quantity 1
+                              return <td key={column.id} className="p-3 align-middle">1</td>;
                             case 'status':
                               return (
-                                <td key={column.id} className="p-3">
-                                  <span
-                                    className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                                      childAssembly.status === 'Waiting'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : childAssembly.status === 'In Production'
-                                        ? 'bg-yellow-100 text-yellow-800'
-                                        : childAssembly.status === 'Welding'
-                                        ? 'bg-orange-100 text-orange-800'
-                                        : childAssembly.status === 'Painting'
-                                        ? 'bg-purple-100 text-purple-800'
-                                        : 'bg-green-100 text-green-800'
-                                    }`}
-                                  >
+                                <td key={column.id} className="p-3 align-middle">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
+                                    childAssembly.status === 'Waiting' ? 'bg-blue-100 text-blue-800' :
+                                    childAssembly.status === 'In Production' ? 'bg-yellow-100 text-yellow-800' :
+                                    childAssembly.status === 'Welding' ? 'bg-orange-100 text-orange-800' :
+                                    childAssembly.status === 'Painting' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-green-100 text-green-800'
+                                  }`}>
                                     {childAssembly.status}
                                   </span>
                                 </td>

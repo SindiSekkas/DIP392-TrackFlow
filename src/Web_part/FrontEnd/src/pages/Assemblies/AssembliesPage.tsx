@@ -826,7 +826,10 @@ const AssembliesPage: React.FC = () => {
                 {getSortedAssemblies().map((assembly) => (
                   <React.Fragment key={assembly.id}>
                     {/* Parent assembly row */}
-                    <tr className="hover:bg-gray-50">
+                    <tr 
+                      className={`hover:bg-gray-50 ${assembly.is_parent ? 'cursor-pointer' : ''}`}
+                      onClick={assembly.is_parent ? () => toggleExpandAssembly(assembly.id as string) : undefined}
+                    >
                       {/* Dynamic columns based on preferences */}
                       {visibleColumns.map(column => {
                         // Render different content based on column id
@@ -837,7 +840,10 @@ const AssembliesPage: React.FC = () => {
                                 <div className="flex items-center">
                                   {assembly.is_parent ? (
                                     <button
-                                      onClick={() => toggleExpandAssembly(assembly.id as string)}
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Prevent row click event
+                                        toggleExpandAssembly(assembly.id as string);
+                                      }}
                                       className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none transition-transform duration-200"
                                       style={{
                                         transform: expandedAssemblies[assembly.id as string] ? 'rotate(0deg)' : 'rotate(-90deg)'
@@ -905,7 +911,7 @@ const AssembliesPage: React.FC = () => {
                       })}
                       
                       <td className="p-3">
-                        <div className="flex justify-center space-x-2">
+                        <div className="flex justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
                           <button
                             onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'assemblies' } })}
                             title="View"
