@@ -592,7 +592,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                   {/* Render child assemblies directly in the main tbody when expanded */}
                   {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
                     childAssemblies[assembly.id as string]?.map(childAssembly => (
-                      <tr key={childAssembly.id} className="hover:bg-gray-50 bg-blue-50">
+                      <tr key={childAssembly.id} className="hover:bg-gray-50">
                         {/* Dynamic columns based on preferences */}
                         {visibleColumns.map(column => {
                           switch (column.id) {

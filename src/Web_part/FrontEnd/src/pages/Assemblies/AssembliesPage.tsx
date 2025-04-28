@@ -860,7 +860,7 @@ const AssembliesPage: React.FC = () => {
                     {/* Replace nested table with direct child assembly rows */}
                     {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
                       childAssemblies[assembly.id as string]?.map(childAssembly => (
-                        <tr key={childAssembly.id} className="hover:bg-gray-50 bg-blue-50">
+                        <tr key={childAssembly.id} className="hover:bg-gray-50">
                           {visibleColumns.map(column => {
                             switch (column.id) {
                               case 'name':
