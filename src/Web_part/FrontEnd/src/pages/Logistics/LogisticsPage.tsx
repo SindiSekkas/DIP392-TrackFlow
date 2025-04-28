@@ -11,10 +11,12 @@ import {
   Filter, 
   ArrowUp,
   ArrowDown,
-  Truck
+  Truck,
+  Barcode // Added barcode icon for batch barcode functionality
 } from 'lucide-react';
 import { LogisticsBatch, logisticsApi } from '../../lib/logisticsApi';
 import { formatDate, formatWeight, naturalSort } from '../../utils/formatters';
+import BarcodePrintView from '../../components/Assemblies/BarcodePrintView'; // Import for barcode printing
 
 // Define types for sorting
 type SortColumn = 'batch_number' | 'status' | 'client_id' | 'project_id' | 'delivery_address' | 'total_weight' | 'shipment_date' | 'estimated_arrival';
@@ -30,6 +32,12 @@ const LogisticsPage: React.FC = () => {
   // Sorting state
   const [sortColumn, setSortColumn] = useState<SortColumn>('shipment_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Barcode related state
+  const [generatingBarcodeFor, setGeneratingBarcodeFor] = useState<string | null>(null);
+  const [selectedBatch, setSelectedBatch] = useState<LogisticsBatch | null>(null);
+  const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   
   const navigate = useNavigate();
 
@@ -143,7 +151,7 @@ const LogisticsPage: React.FC = () => {
     
     const csvContent = [
       headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...csvData.map(row => row.map(cell => `"${cell}"`).join(',')),
     ].join('\n');
     
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -169,6 +177,34 @@ const LogisticsPage: React.FC = () => {
     } catch (err) {
       console.error('Error deleting logistics batch:', err);
       setError('Failed to delete logistics batch. Please try again.');
+    }
+  };
+
+  // Handle barcode generation and printing
+  const handleBarcodeAction = async (batch: LogisticsBatch) => {
+    try {
+      setGeneratingBarcodeFor(batch.id as string);
+      
+      // Check if batch already has a barcode
+      const existingBarcode = await logisticsApi.getBatchBarcode(batch.id as string);
+      
+      if (existingBarcode) {
+        // If barcode exists, show print modal
+        setBarcodeData(existingBarcode);
+        setSelectedBatch(batch);
+        setShowPrintModal(true);
+      } else {
+        // If no barcode exists, generate one
+        const newBarcode = await logisticsApi.generateBatchBarcode(batch.id as string);
+        setBarcodeData(newBarcode);
+        setSelectedBatch(batch);
+        setShowPrintModal(true);
+      }
+    } catch (err) {
+      console.error('Error handling barcode:', err);
+      setError('Failed to process barcode. Please try again.');
+    } finally {
+      setGeneratingBarcodeFor(null);
     }
   };
 
@@ -348,6 +384,19 @@ const LogisticsPage: React.FC = () => {
                       >
                         <Trash2 size={16} className="text-red-600" />
                       </button>
+                      {/* Add barcode button */}
+                      <button
+                        onClick={() => handleBarcodeAction(batch)}
+                        disabled={generatingBarcodeFor === batch.id}
+                        title="Barcode"
+                        className="p-1 rounded-full hover:bg-gray-200"
+                      >
+                        {generatingBarcodeFor === batch.id ? (
+                          <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Barcode size={16} className="text-green-600" />
+                        )}
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -355,6 +404,22 @@ const LogisticsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+      )}
+      
+      {/* Add barcode print modal */}
+      {showPrintModal && selectedBatch && barcodeData && (
+        <BarcodePrintView 
+          barcodes={[{
+            id: selectedBatch.id || '',
+            barcode: barcodeData.barcode,
+            assemblyName: selectedBatch.batch_number, // Using batch number as the name
+            projectName: selectedBatch.project?.name || selectedBatch.client?.company_name || 'Logistics Batch'
+          }]}
+          onClose={() => {
+            setShowPrintModal(false);
+            setSelectedBatch(null);
+          }}
+        />
       )}
     </div>
   );
