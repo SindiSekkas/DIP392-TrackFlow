@@ -254,27 +254,98 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
   };
 
   // Function to handle printing a single barcode
-  const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string) => {
+  const handlePrintSingleBarcode = async (assemblyId: string, assemblyName: string, isParent: boolean = false) => {
     try {
       setLoading(true);
       
-      // Get the barcode for this assembly
-      const barcode = await assembliesApi.getAssemblyBarcode(assemblyId);
-      
-      if (barcode) {
-        // Prepare barcode data for print view
-        const barcodeData = [{
-          id: barcode.id,
-          barcode: barcode.barcode,
-          assemblyName: assemblyName,
-          projectName: projectName
-        }];
+      // If this is a parent assembly, print barcodes for all its children
+      if (isParent) {
+        let childAssemblyList: Assembly[] = [];
         
-        // Show print view
-        setSelectedBarcodes(barcodeData);
+        // Check if child assemblies are already loaded in state
+        if (childAssemblies[assemblyId] && childAssemblies[assemblyId].length > 0) {
+          childAssemblyList = childAssemblies[assemblyId];
+        } else {
+          // If not, fetch from database
+          const { data, error } = await supabase
+            .from('assemblies')
+            .select('*')
+            .eq('parent_id', assemblyId)
+            .order('child_number', { ascending: true });
+            
+          if (error) {
+            console.error('Error fetching child assemblies:', error);
+            setError('Failed to fetch child assemblies');
+            setLoading(false);
+            return;
+          }
+          
+          childAssemblyList = data as Assembly[];
+        }
+        
+        if (childAssemblyList.length === 0) {
+          setError(`No child assemblies found for ${assemblyName}`);
+          setLoading(false);
+          return;
+        }
+        
+        // Get barcodes for all child assemblies
+        const barcodePromises = childAssemblyList.map(async (child) => {
+          try {
+            // Get existing barcode or generate a new one
+            let barcode = await assembliesApi.getAssemblyBarcode(child.id as string);
+            
+            if (!barcode) {
+              // Generate barcode if it doesn't exist
+              barcode = await assembliesApi.generateAssemblyBarcode(child.id as string);
+            }
+            
+            return {
+              id: barcode.id,
+              barcode: barcode.barcode,
+              assemblyName: child.name,
+              projectName: projectName
+            };
+          } catch (err) {
+            console.error(`Error getting barcode for child assembly ${child.id}:`, err);
+            return null;
+          }
+        });
+        
+        // Wait for all barcode operations to complete
+        const barcodeResults = await Promise.all(barcodePromises);
+        const validBarcodes = barcodeResults.filter(Boolean);
+        
+        if (validBarcodes.length === 0) {
+          setError("Failed to generate barcodes for child assemblies");
+          setLoading(false);
+          return;
+        }
+        
+        // Show print view with all child barcodes
+        setSelectedBarcodes(validBarcodes);
         setShowPrintView(true);
-      } else {
-        setError("No barcode found for this assembly");
+      } 
+      // For regular (non-parent) assemblies, just print a single barcode
+      else {
+        // Get the barcode for this assembly
+        const barcode = await assembliesApi.getAssemblyBarcode(assemblyId);
+        
+        if (barcode) {
+          // Prepare barcode data for print view
+          const barcodeData = [{
+            id: barcode.id,
+            barcode: barcode.barcode,
+            assemblyName: assemblyName,
+            projectName: projectName
+          }];
+          
+          // Show print view
+          setSelectedBarcodes(barcodeData);
+          setShowPrintView(true);
+        } else {
+          setError("No barcode found for this assembly");
+        }
       }
     } catch (err: any) {
       console.error('Error preparing barcode for printing:', err);
@@ -286,30 +357,37 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
 
   // Handle printing all barcodes for assemblies
   const handlePrintAllBarcodes = async () => {
-    // Get all child assemblies that have barcodes (parent assemblies don't have barcodes)
-    let assembliesList: Assembly[] = [];
-    
-    // First get all expanded assemblies' children
-    Object.keys(childAssemblies).forEach(parentId => {
-      if (childAssemblies[parentId] && childAssemblies[parentId].length > 0) {
-        assembliesList = [...assembliesList, ...childAssemblies[parentId]];
-      }
-    });
-    
-    // Also add non-parent assemblies from the main list
-    assembliesList = [
-      ...assembliesList,
-      ...assemblies.filter(a => !a.is_parent)
-    ];
-    
-    if (assembliesList.length === 0) {
-      setError("No assemblies with barcodes found");
-      return;
-    }
-    
     try {
       setLoading(true);
       setError(null);
+      
+      // First get all regular (non-parent) assemblies from the main list
+      let assembliesList = assemblies.filter(a => !a.is_parent);
+      
+      // Now fetch ALL child assemblies for this project
+      const { data: childData, error: childError } = await supabase
+        .from('assemblies')
+        .select('*')
+        .eq('project_id', projectId)
+        .not('parent_id', 'is', null); // Select all assemblies that have a parent_id
+      
+      if (childError) {
+        console.error('Error fetching child assemblies:', childError);
+        setError('Failed to fetch all child assemblies');
+        setLoading(false);
+        return;
+      }
+      
+      // Add all child assemblies to our list
+      if (childData && childData.length > 0) {
+        assembliesList = [...assembliesList, ...childData];
+      }
+      
+      if (assembliesList.length === 0) {
+        setError("No assemblies with barcodes found");
+        setLoading(false);
+        return;
+      }
       
       // Prepare to collect all barcode data
       const allBarcodeData: any[] = [];
@@ -353,6 +431,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
       
       if (allBarcodeData.length === 0) {
         setError("No barcodes could be generated");
+        setLoading(false);
         return;
       }
       
@@ -575,16 +654,13 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                         >
                           <Trash2 size={16} className="text-red-600" />
                         </button>
-                        {/* Only show barcode button for non-parent assemblies */}
-                        {!assembly.is_parent && (
-                          <button
-                            onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name)}
-                            title="Print Barcode"
-                            className="p-1 rounded-full hover:bg-gray-200"
-                          >
-                            <Barcode size={16} className="text-green-600" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handlePrintSingleBarcode(assembly.id as string, assembly.name, assembly.is_parent)}
+                          title={assembly.is_parent ? "Print Child Barcodes" : "Print Barcode"}
+                          className="p-1 rounded-full hover:bg-gray-200"
+                        >
+                          <Barcode size={16} className="text-green-600" />
+                        </button>
                       </div>
                     </td>
                   </tr>
