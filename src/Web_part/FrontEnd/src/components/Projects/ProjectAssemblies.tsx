@@ -539,14 +539,15 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full rounded-lg overflow-hidden border border-gray-200">
-            <thead className="bg-gray-100 text-gray-700">
+          {/* Apply table-fixed layout to potentially help with consistent row heights */}
+          <table className="min-w-full rounded-lg overflow-hidden border border-gray-200 table-fixed"> 
+            <thead className="bg-gray-100 text-gray-700 sticky top-0 z-[5] shadow-sm">
               <tr>
-                {/* Dynamic column headers based on preferences - now with sorting */}
+                {/* Dynamic column headers with sorting */}
                 {visibleColumns.map(column => renderColumnHeader(column))}
                 
                 {/* Always include actions column */}
-                <th className="text-center p-3">Actions</th>
+                <th className="text-center p-3 font-medium w-32">Actions</th> {/* Added fixed width */}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -560,10 +561,12 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                     {/* Dynamic columns based on preferences */}
                     {visibleColumns.map(column => {
                       // Render different content based on column id
+                      // Add align-middle to all parent cells
                       switch (column.id) {
                         case 'name':
                           return (
-                            <td key={column.id} className="p-3">
+                            // Added align-middle and explicit width for name column
+                            <td key={column.id} className="p-3 align-middle w-1/4"> 
                               <div className="flex items-center">
                                 {assembly.is_parent ? (
                                   <button
@@ -572,7 +575,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                                       toggleExpandAssembly(assembly.id as string);
                                     }}
                                     className="mr-2 text-gray-500 hover:text-gray-700 focus:outline-none transition-transform duration-200"
-                                    style={{ 
+                                    style={{
                                       transform: expandedAssemblies[assembly.id as string] ? 'rotate(0deg)' : 'rotate(-90deg)'
                                     }}
                                   >
@@ -595,14 +598,17 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                             </td>
                           );
                         case 'weight':
-                          return <td key={column.id} className="p-3">{formatWeight(assembly.weight)}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-24">{formatWeight(assembly.weight)}</td>;
                         case 'quantity':
-                          return <td key={column.id} className="p-3">{assembly.quantity}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-20">{assembly.quantity}</td>;
                         case 'status':
                           return (
-                            <td key={column.id} className="p-3">
+                             // Added align-middle, explicit width, and whitespace-nowrap
+                            <td key={column.id} className="p-3 align-middle w-32">
                               <span
-                                className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                className={`inline-block px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${ // Added whitespace-nowrap
                                   assembly.status === 'Waiting'
                                     ? 'bg-blue-100 text-blue-800'
                                     : assembly.status === 'In Production'
@@ -619,28 +625,37 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                             </td>
                           );
                         case 'width':
-                          return <td key={column.id} className="p-3">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-24">{assembly.width ? formatDimension(assembly.width) : '—'}</td>;
                         case 'height':
-                          return <td key={column.id} className="p-3">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-24">{assembly.height ? formatDimension(assembly.height) : '—'}</td>;
                         case 'length':
-                          return <td key={column.id} className="p-3">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-24">{assembly.length ? formatDimension(assembly.length) : '—'}</td>;
                         case 'painting_spec':
-                          return <td key={column.id} className="p-3">{assembly.painting_spec || '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-32">{assembly.painting_spec || '—'}</td>;
                         case 'start_date':
-                          return <td key={column.id} className="p-3">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-32">{assembly.start_date ? formatDate(assembly.start_date as string) : '—'}</td>;
                         case 'end_date':
-                          return <td key={column.id} className="p-3">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-32">{assembly.end_date ? formatDate(assembly.end_date as string) : '—'}</td>;
                         case 'quality_control_status':
-                          return <td key={column.id} className="p-3">{assembly.quality_control_status || '—'}</td>;
+                           // Added align-middle and explicit width
+                          return <td key={column.id} className="p-3 align-middle w-32">{assembly.quality_control_status || '—'}</td>;
                         default:
-                          return <td key={column.id} className="p-3">—</td>;
+                           // Added align-middle
+                          return <td key={column.id} className="p-3 align-middle">—</td>;
                       }
                     })}
                     
-                    <td className="p-3">
+                     {/* Added align-middle to actions cell */}
+                    <td className="p-3 align-middle">
                       <div className="flex justify-center space-x-2" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'project' } })}
+                          onClick={() => navigate(`/dashboard/assemblies/${assembly.id}`, { state: { from: 'project' } })} // Adapted state
                           title="View"
                           className="p-1 rounded-full hover:bg-gray-200"
                         >
@@ -654,7 +669,7 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                           <Edit size={16} className="text-yellow-600" />
                         </button>
                         <button
-                          onClick={() => handleDeleteAssembly(assembly.id as string, assembly.is_parent)}
+                          onClick={() => handleDeleteAssembly(assembly.id as string, assembly.is_parent)} // Pass is_parent flag
                           title="Delete"
                           className="p-1 rounded-full hover:bg-gray-200"
                         >
@@ -671,28 +686,34 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                     </td>
                   </tr>
                   
-                  {/* Render child assemblies directly in the main tbody when expanded */}
+                  {/* Child assembly rows */}
                   {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
                     childAssemblies[assembly.id as string]?.map(childAssembly => (
-                      <tr key={childAssembly.id} className="hover:bg-gray-50">
+                      // Ensure child rows also have consistent styling if needed
+                      <tr key={childAssembly.id} className="hover:bg-gray-50 bg-gray-50"> 
                         {visibleColumns.map(column => {
+                          // Child cells already have align-middle from previous change
                           switch (column.id) {
                             case 'name':
                               return (
-                                <td key={column.id} className="p-3 align-middle">
+                                // Added explicit width matching parent
+                                <td key={column.id} className="p-3 align-middle w-1/4"> 
                                   <div className="flex items-center pl-8">
-                                    <span>{childAssembly.name}</span>
+                                    {/* Allow text wrapping within the cell */}
+                                    <span className="break-words">{childAssembly.name}</span> 
                                   </div>
                                 </td>
                               );
+                            // Add explicit widths matching parent cells for consistency
                             case 'weight':
-                              return <td key={column.id} className="p-3 align-middle">{formatWeight(childAssembly.weight)}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-24">{formatWeight(childAssembly.weight)}</td>;
                             case 'quantity':
-                              return <td key={column.id} className="p-3 align-middle">1</td>;
+                              return <td key={column.id} className="p-3 align-middle w-20">1</td>; 
                             case 'status':
                               return (
-                                <td key={column.id} className="p-3 align-middle">
-                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
+                                // Added explicit width matching parent and whitespace-nowrap
+                                <td key={column.id} className="p-3 align-middle w-32">
+                                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${ // Added whitespace-nowrap
                                     childAssembly.status === 'Waiting' ? 'bg-blue-100 text-blue-800' :
                                     childAssembly.status === 'In Production' ? 'bg-yellow-100 text-yellow-800' :
                                     childAssembly.status === 'Welding' ? 'bg-orange-100 text-orange-800' :
@@ -704,52 +725,40 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                                 </td>
                               );
                             case 'width':
-                              return <td key={column.id} className="p-3">{childAssembly.width ? formatDimension(childAssembly.width) : '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-24">{childAssembly.width ? formatDimension(childAssembly.width) : '—'}</td>;
                             case 'height':
-                              return <td key={column.id} className="p-3">{childAssembly.height ? formatDimension(childAssembly.height) : '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-24">{childAssembly.height ? formatDimension(childAssembly.height) : '—'}</td>;
                             case 'length':
-                              return <td key={column.id} className="p-3">{childAssembly.length ? formatDimension(childAssembly.length) : '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-24">{childAssembly.length ? formatDimension(childAssembly.length) : '—'}</td>;
                             case 'painting_spec':
-                              return <td key={column.id} className="p-3">{childAssembly.painting_spec || '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-32">{childAssembly.painting_spec || '—'}</td>;
                             case 'start_date':
-                              return <td key={column.id} className="p-3">{childAssembly.start_date ? formatDate(childAssembly.start_date as string) : '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-32">{childAssembly.start_date ? formatDate(childAssembly.start_date as string) : '—'}</td>;
                             case 'end_date':
-                              return <td key={column.id} className="p-3">{childAssembly.end_date ? formatDate(childAssembly.end_date as string) : '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-32">{childAssembly.end_date ? formatDate(childAssembly.end_date as string) : '—'}</td>;
                             case 'quality_control_status':
-                              return <td key={column.id} className="p-3">{childAssembly.quality_control_status || '—'}</td>;
+                              return <td key={column.id} className="p-3 align-middle w-32">{childAssembly.quality_control_status || '—'}</td>;
                             default:
-                              return <td key={column.id} className="p-3">—</td>;
+                              return <td key={column.id} className="p-3 align-middle">—</td>;
                           }
                         })}
-                        
-                        <td className="p-3">
+                        {/* Child actions cell */}
+                        <td className="p-3 align-middle"> 
                           <div className="flex justify-center space-x-2">
-                            <button
-                              onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}`, { state: { from: 'project' } })}
-                              title="View"
-                              className="p-1 rounded-full hover:bg-gray-200"
-                            >
+                            <button onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}`, { state: { from: 'project' } })} // Adapted state
+                              title="View" className="p-1 rounded-full hover:bg-gray-200">
                               <Eye size={16} className="text-blue-600" />
                             </button>
-                            <button
-                              onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}/edit`)}
-                              title="Edit"
-                              className="p-1 rounded-full hover:bg-gray-200"
-                            >
+                            <button onClick={() => navigate(`/dashboard/assemblies/${childAssembly.id}/edit`)}
+                              title="Edit" className="p-1 rounded-full hover:bg-gray-200">
                               <Edit size={16} className="text-yellow-600" />
                             </button>
-                            <button
-                              onClick={() => handleDeleteAssembly(childAssembly.id as string)}
-                              title="Delete"
-                              className="p-1 rounded-full hover:bg-gray-200"
-                            >
+                            <button onClick={() => handleDeleteAssembly(childAssembly.id as string)} // Child is never a parent
+                              title="Delete" className="p-1 rounded-full hover:bg-gray-200">
                               <Trash2 size={16} className="text-red-600" />
                             </button>
-                            <button
-                              onClick={() => handlePrintSingleBarcode(childAssembly.id as string, childAssembly.name)}
-                              title="Print Barcode"
-                              className="p-1 rounded-full hover:bg-gray-200"
-                            >
+                            <button onClick={() => handlePrintSingleBarcode(childAssembly.id as string, childAssembly.name)} // Child is never a parent
+                              title="Print Barcode" className="p-1 rounded-full hover:bg-gray-200">
                               <Barcode size={16} className="text-green-600" />
                             </button>
                           </div>
@@ -757,9 +766,9 @@ const ProjectAssemblies: React.FC<ProjectAssembliesProps> = ({ projectId }) => {
                       </tr>
                     ))
                   }
-                  
-                  {/* Show loading placeholder if we're still loading children */}
-                  {assembly.is_parent && expandedAssemblies[assembly.id as string] && loadingChildrenFor[assembly.id as string] && !childAssemblies[assembly.id as string] && (
+                  {/* Loading indicator row */}
+                  {assembly.is_parent && expandedAssemblies[assembly.id as string] && 
+                    loadingChildrenFor[assembly.id as string] && !childAssemblies[assembly.id as string] && (
                     <tr className="bg-gray-50">
                       <td colSpan={visibleColumns.length + 1} className="p-3 text-center">
                         <div className="inline-block animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
