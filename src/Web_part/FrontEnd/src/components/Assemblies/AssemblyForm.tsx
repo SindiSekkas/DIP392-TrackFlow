@@ -111,10 +111,18 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
     }
     // Handle numeric inputs
     else if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: value === '' ? 0 : parseFloat(value)
-      });
+      // Special handling for weight to fix the "01000" issue
+      if (name === 'weight' && formData[name] === 0 && value !== '') {
+        setFormData({
+          ...formData,
+          [name]: parseFloat(value)
+        });
+      } else {
+        setFormData({
+          ...formData,
+          [name]: value === '' ? 0 : parseFloat(value)
+        });
+      }
     }
     // Handle other fields
     else {
@@ -300,12 +308,13 @@ const AssemblyForm: React.FC<AssemblyFormProps> = ({
             <input
               type="number"
               name="weight"
-              value={formData.weight}
+              value={formData.weight === 0 ? '' : formData.weight}
               onChange={handleChange}
               required
               min="0.01"
               step="0.01"
               className="w-full p-2 border border-gray-300 rounded-md"
+              placeholder="0"
             />
           </div>
 
