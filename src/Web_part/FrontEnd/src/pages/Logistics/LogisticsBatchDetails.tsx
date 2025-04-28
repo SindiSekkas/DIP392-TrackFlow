@@ -369,7 +369,7 @@ const LogisticsBatchDetails: React.FC = () => {
             <div className="flex items-center">
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
                 <Truck size={20} className="mr-2 text-blue-600" />
-                Batch {batch.batch_number}
+                {batch.batch_number}
               </h2>
               <span
                 className={`ml-3 px-2.5 py-1 rounded text-xs font-medium ${
