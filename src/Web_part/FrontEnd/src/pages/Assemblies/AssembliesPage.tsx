@@ -691,7 +691,7 @@ const AssembliesPage: React.FC = () => {
         </div>
 
         {/* Assemblies table */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto relative">
           {!selectedProject ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <LayoutGrid size={48} className="text-gray-300 mb-4" />
@@ -732,7 +732,7 @@ const AssembliesPage: React.FC = () => {
             </div>
           ) : (
             <table className="min-w-full bg-white">
-              <thead className="bg-gray-100 text-gray-700">
+              <thead className="bg-gray-100 text-gray-700 sticky top-0 z-[5] shadow-sm">
                 <tr>
                   {/* Dynamic column headers with sorting */}
                   {visibleColumns.map(column => renderColumnHeader(column))}
@@ -867,7 +867,6 @@ const AssembliesPage: React.FC = () => {
                                 return (
                                   <td key={column.id} className="p-3 align-middle">
                                     <div className="flex items-center pl-8">
-                                      <Package size={14} className="text-blue-400 mr-2" />
                                       <span>{childAssembly.name}</span>
                                     </div>
                                   </td>

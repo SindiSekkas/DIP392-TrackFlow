@@ -276,9 +276,9 @@ const LogisticsPage: React.FC = () => {
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg relative">
           <table className="min-w-full">
-            <thead className="bg-gray-100 text-gray-700">
+            <thead className="bg-gray-100 text-gray-700 sticky top-0 z-[5] shadow-sm">
               <tr>
                 {renderSortHeader('Batch #', 'batch_number')}
                 {renderSortHeader('Status', 'status')}

@@ -734,9 +734,9 @@ const UserManagementPage: React.FC = () => {
         )}
 
         {/* Users table */}
-        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg">
+        <div className="overflow-x-auto h-[calc(100vh-300px)] border border-gray-200 rounded-lg relative">
           <table className="min-w-full">
-            <thead className="bg-gray-100 text-gray-700">
+            <thead className="bg-gray-100 text-gray-700 sticky top-0 z-[5] shadow-sm">
               <tr>
                 <th 
                   className="text-left p-3 cursor-pointer hover:bg-gray-200 w-1/5"
