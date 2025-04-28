@@ -827,7 +827,7 @@ const AssembliesPage: React.FC = () => {
                   <React.Fragment key={assembly.id}>
                     {/* Parent assembly row */}
                     <tr 
-                      className={`hover:bg-gray-50 ${assembly.is_parent ? 'cursor-pointer' : ''}`}
+                      className={`hover:bg-gray-50 ${assembly.is_parent ? 'cursor-pointer' : ''} ${assembly.is_parent && expandedAssemblies[assembly.id as string] ? 'bg-gray-50' : ''}`}
                       onClick={assembly.is_parent ? () => toggleExpandAssembly(assembly.id as string) : undefined}
                     >
                       {/* Dynamic columns based on preferences */}
@@ -860,7 +860,7 @@ const AssembliesPage: React.FC = () => {
                                   )}
                                   {assembly.name}
                                   {assembly.is_parent && (
-                                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full select-none"> {/* Added select-none */}
                                       Group ({assembly.quantity || assembly.original_quantity || 0})
                                     </span>
                                   )}
