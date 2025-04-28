@@ -332,7 +332,12 @@ const LogisticsBatchForm: React.FC<LogisticsBatchFormProps> = ({
       
     } catch (err: any) {
       console.error('Error saving logistics batch:', err);
-      setError(err.message || 'Failed to save logistics batch. Please try again.');
+      // Check for specific unique constraint violation error
+      if (err.message && err.message.includes('logistics_batches_batch_number_key')) {
+        setError('This Batch Number is already in use. Please enter a unique Batch Number or leave it empty to auto-generate one.');
+      } else {
+        setError(err.message || 'Failed to save logistics batch. Please try again.');
+      }
     } finally {
       setSubmitting(false);
     }
