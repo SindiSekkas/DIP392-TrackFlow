@@ -162,3 +162,38 @@ export const assemblyStatusValidationRules = {
       .withMessage('Invalid assembly ID')
   ]
 };
+
+// Logistics Barcode validation rules
+export const logisticsBarcodeValidationRules = {
+  validateBatchBarcode: [
+    body('barcode')
+      .notEmpty()
+      .withMessage('Barcode is required')
+      .trim()
+  ],
+  
+  addAssemblyToBatch: [
+    body('batchId')
+      .isUUID()
+      .withMessage('Valid batch ID is required'),
+    body('assemblyBarcode')
+      .notEmpty()
+      .withMessage('Assembly barcode is required')
+      .trim(),
+    body('userId')
+      .isUUID()
+      .withMessage('Valid user ID is required')
+  ],
+  
+  getBatchAssemblies: [
+    param('batchId')
+      .isUUID()
+      .withMessage('Invalid batch ID')
+  ],
+  
+  removeAssemblyFromBatch: [
+    param('batchAssemblyId')
+      .isUUID()
+      .withMessage('Invalid batch assembly ID')
+  ]
+};

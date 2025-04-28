@@ -1,0 +1,29 @@
+-- Create mobile operations log table for tracking all mobile activities
+CREATE TABLE IF NOT EXISTS mobile_operations_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    operation_type TEXT NOT NULL,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    device_info JSONB DEFAULT '{}'::jsonb,
+    request_details JSONB DEFAULT '{}'::jsonb,
+    status_code INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Specific logistics fields
+    batch_id UUID REFERENCES logistics_batches(id) ON DELETE SET NULL,
+    assembly_id UUID REFERENCES assemblies(id) ON DELETE SET NULL
+);
+
+-- Add index for faster queries by operation type
+CREATE INDEX IF NOT EXISTS idx_mobile_operations_log_operation_type 
+ON mobile_operations_log(operation_type);
+
+-- Add index for faster queries by user ID
+CREATE INDEX IF NOT EXISTS idx_mobile_operations_log_user_id 
+ON mobile_operations_log(user_id);
+
+-- Add indexes for logistics-specific fields
+CREATE INDEX IF NOT EXISTS idx_mobile_operations_log_batch_id 
+ON mobile_operations_log(batch_id);
+
+CREATE INDEX IF NOT EXISTS idx_mobile_operations_log_assembly_id 
+ON mobile_operations_log(assembly_id);
