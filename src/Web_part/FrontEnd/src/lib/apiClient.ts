@@ -1,8 +1,8 @@
 // src/lib/apiClient.ts
 import { AppError } from '../utils/errorHandling';
 
-// API base URL from environment variable
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// API base URL из переменных окружения
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Generic API request function with token handling
@@ -22,8 +22,12 @@ async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const url = endpoint.startsWith('http') 
+    ? endpoint 
+    : `${API_BASE_URL}${endpoint}`;
+
   try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(url, {
       method,
       headers,
       body: data ? JSON.stringify(data) : undefined,
@@ -32,7 +36,6 @@ async function apiRequest<T>(
     const responseData = await response.json();
 
     if (!response.ok) {
-      // Handle error response from API
       throw new AppError(
         response.status >= 500 ? 'SERVER' : 'VALIDATION',
         responseData.error?.message || 'Request failed',
