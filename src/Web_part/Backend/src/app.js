@@ -15,9 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Set up middleware
-app.use(helmet()); // Security headers
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://trackflow.pl', 'https://www.trackflow.pl', process.env.FRONTEND_URL]
+    : process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json()); // Parse JSON bodies

@@ -1,7 +1,7 @@
 // src/Web_part/Backend/tests/mobile-logistics-api-test.js
 import axios from 'axios';
 
-const API_BASE_URL = process.env.API_URL || 'http://127.0.0.1:3001/api';
+const API_BASE_URL = process.env.API_URL || 'https://api.trackflow.pl/api';
 // Increase timeout to allow for slower connections
 const REQUEST_TIMEOUT = 10000; // 10 seconds
 
