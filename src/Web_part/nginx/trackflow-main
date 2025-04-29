@@ -1,0 +1,48 @@
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name trackflow.pl www.trackflow.pl;
+
+    # Redirect to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+# HTTPS Server Block
+server {
+    listen 443 ssl http2; # Added http2 for potential performance improvement
+    server_name trackflow.pl www.trackflow.pl;
+
+    # SSL Settings
+    ssl_certificate /etc/letsencrypt/live/trackflow.pl/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/trackflow.pl/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # Recommended Let's Encrypt options
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;   # Diffie-Hellman parameters
+
+    # Root directory for static files
+    root /home/azureuser/trackflow-deploy/public; # Make sure this path is correct
+    index index.html; # Default file to serve
+
+    # Security Headers (Applied to all responses)
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co; frame-src 'self' https://www.youtube.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; worker-src 'self'; upgrade-insecure-requests;" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    # add_header X-Frame-Options "DENY" always; # Commented out: Use CSP frame-src instead
+
+    # Main route - handle SPA routing
+    location / {
+        try_files $uri $uri/ /index.html; # Serve file if exists, directory if exists, otherwise fallback to index.html
+    }
+
+    # Static files handling - add caching headers
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf|eot)$ {
+        expires 30d; # Cache these files for 30 days
+        add_header Cache-Control "public, no-transform";
+        try_files $uri =404; # Serve file if exists, otherwise return 404
+    }
+
+    # Logs
+    access_log /var/log/nginx/trackflow.access.log;
+    error_log /var/log/nginx/trackflow.error.log;
+}
+
