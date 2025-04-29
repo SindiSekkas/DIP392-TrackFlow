@@ -7,7 +7,13 @@ import { fileURLToPath } from 'url'
 // Utility function to generate security headers
 const generateSecurityHeaders = (isDev: boolean) => ({
   ...(isDev ? {} : {
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co;"
+    'Content-Security-Policy': 
+	"default-src 'self';
+	 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com;
+	 style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;
+	 font-src 'self' data:;
+	 connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co;
+	 frame-src 'self' https://www.youtube.com;"
   }),
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
