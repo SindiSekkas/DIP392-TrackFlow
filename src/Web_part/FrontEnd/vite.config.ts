@@ -5,18 +5,11 @@ import tailwind from '@tailwindcss/vite'
 import { fileURLToPath } from 'url'
 
 // Utility function to generate security headers
-const generateSecurityHeaders = (isDev: boolean) => ({
-  ...(isDev ? {} : {
-    'Content-Security-Policy': 
-	`default-src 'self';
-	 script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com;
-	 style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:;
-	 font-src 'self' data:;
-	 connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co;
-	 frame-src 'self' https://www.youtube.com;`
-  }),
+const generateSecurityHeaders = () => ({
+  // Apply CSP in both dev and prod
+  'Content-Security-Policy': 
+	`default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co; frame-src 'self' https://www.youtube.com`,
   'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
   'Referrer-Policy': 'strict-origin-when-cross-origin'
 })
@@ -36,12 +29,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: true, // Listen on all addresses, including network
-      headers: generateSecurityHeaders(true)
+      headers: generateSecurityHeaders()
     },
     preview: {
       port: 3000,
       host: true, // Listen on all addresses, including network
-      headers: generateSecurityHeaders(false)
+      headers: generateSecurityHeaders()
     },
     build: {
       sourcemap: isDev,
