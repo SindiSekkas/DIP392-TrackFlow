@@ -7,25 +7,12 @@ import { fileURLToPath } from 'url'
 // Utility function to generate security headers
 const generateSecurityHeaders = (isDev: boolean) => ({
   ...(isDev ? {} : {
-    'Content-Security-Policy': [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
-      "frame-src 'self'",
-      "base-uri 'self'",
-      "form-action 'self'"
-    ].join('; ')
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co;"
   }),
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  ...(isDev ? {} : {
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
-  })
+  'Referrer-Policy': 'strict-origin-when-cross-origin'
 })
 
 // https://vitejs.dev/config/

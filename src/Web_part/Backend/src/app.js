@@ -43,6 +43,21 @@ app.use((req, res) => {
   });
 });
 
+// Security headers
+app.use((req, res, next) => {
+  // Basic CSP for API server - restrictive but functional
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; connect-src 'self'"
+  );
+  
+  // Basic security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  
+  next();
+});
+
 // Error handler
 app.use(errorMiddleware);
 
