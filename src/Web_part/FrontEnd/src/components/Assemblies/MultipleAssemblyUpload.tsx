@@ -21,10 +21,9 @@ import * as XLSX from 'xlsx';
 import { getDocument, GlobalWorkerOptions, PDFDocumentProxy } from 'pdfjs-dist';
 import { PDFDocument } from 'pdf-lib';
 import { supabase } from '../../lib/supabase'; // Import supabase client
+import PDFWorkerURL from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Устанавливаем путь к локальному PDF.js worker
-// Файл должен находиться в папке public/pdf-worker/
-GlobalWorkerOptions.workerSrc = '/pdf-worker/pdf.worker.min.mjs';
+GlobalWorkerOptions.workerSrc = PDFWorkerURL;
 
 interface MultipleAssemblyUploadProps {
   projectId?: string;
