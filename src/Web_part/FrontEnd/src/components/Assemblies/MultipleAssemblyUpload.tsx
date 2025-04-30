@@ -97,7 +97,6 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   const [pdfDocument, setPdfDocument] = useState<PDFDocumentProxy | null>(null);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfProcessingError, setPdfProcessingError] = useState<string | null>(null);
@@ -130,14 +129,12 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
     fetchProject();
   }, [effectiveProjectId, navigate]);
 
-  // Cleanup PDF preview URL when component unmounts
+  // Cleanup PDF preview URL when component unmounts - Removed object URL cleanup
   useEffect(() => {
     return () => {
-      if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl);
-      }
+      // No cleanup needed for object URL anymore
     };
-  }, [pdfPreviewUrl]);
+  }, []); // Removed pdfPreviewUrl from dependencies
 
   // Function to load PDF and get page count
   const loadPdfDocument = async (file: File) => {
@@ -145,12 +142,10 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       setPdfProcessingError(null);
       setLoading(true);
       
-      // Create a URL for the PDF file
-      const fileUrl = URL.createObjectURL(file);
-      setPdfPreviewUrl(fileUrl);
-      
-      // Load the PDF document using pdf.js
-      const loadingTask = getDocument(fileUrl);
+      // Read the file as ArrayBuffer instead of creating a blob URL
+      const arrayBuffer = await file.arrayBuffer();
+      // Use ArrayBuffer directly
+      const loadingTask = getDocument({ data: arrayBuffer });
       
       // Add error handling
       loadingTask.onPassword = (_: unknown, __: unknown) => {
@@ -918,10 +913,11 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
       setTotalPages(0);
       setCurrentPage(1);
       setPreviewMode(false);
-      if (pdfPreviewUrl) {
-        URL.revokeObjectURL(pdfPreviewUrl);
-        setPdfPreviewUrl(null);
-      }
+      // Remove object URL cleanup as it's no longer used
+      // if (pdfPreviewUrl) {
+      //   URL.revokeObjectURL(pdfPreviewUrl);
+      //   setPdfPreviewUrl(null);
+      // }
       resetFileInput();
       
       // Redirect after a brief delay
@@ -1388,10 +1384,11 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
                     setUploadedRows([]);
                     setPdfFile(null);
                     setPdfDocument(null);
-                    if (pdfPreviewUrl) {
-                      URL.revokeObjectURL(pdfPreviewUrl);
-                      setPdfPreviewUrl(null);
-                    }
+                    // Remove object URL cleanup as it's no longer used
+                    // if (pdfPreviewUrl) {
+                    //   URL.revokeObjectURL(pdfPreviewUrl);
+                    //   setPdfPreviewUrl(null);
+                    // }
                     resetFileInput();
                   }}
                   className="px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
