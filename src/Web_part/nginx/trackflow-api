@@ -1,35 +1,31 @@
 server {
-    listen 80;
-    server_name api.trackflow.pl;
-    
-    # Редирект на HTTPS
-    return 301 https://$host$request_uri;
-}
-
-server {
     listen 443 ssl;
     server_name api.trackflow.pl;
     
-    # SSL-настройки (если у вас есть сертификат)
+    # SSL settings
     ssl_certificate /etc/letsencrypt/live/api.trackflow.pl/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/api.trackflow.pl/privkey.pem;
     include /etc/letsencrypt/options-ssl-nginx.conf;
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
     
-    # Проксирование на Node.js сервер
+    # Logs
+    access_log /var/log/nginx/api-trackflow.access.log;
+    error_log /var/log/nginx/api-trackflow.error.log;
+    
+    # Proxy to Node.js server
     location / {
-        proxy_pass http://localhost:3000;
+        # Confirm this port matches what your PM2 app is using
+        proxy_pass http://127.0.0.1:3001;
+        
+        # Basic proxy settings
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # No CORS headers in Nginx - let Express handle it
     }
-    
-    # Логи
-    access_log /var/log/nginx/api-trackflow.access.log;
-    error_log /var/log/nginx/api-trackflow.error.log;
 }

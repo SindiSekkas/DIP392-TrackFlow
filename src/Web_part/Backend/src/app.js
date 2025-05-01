@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import routes from './routes.js';
 import { errorMiddleware } from './utils/errorHandler.js';
+import crypto from 'crypto'; // Add explicit import for crypto
 
 // Load environment variables
 dotenv.config();
@@ -14,19 +15,57 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Set up middleware
+// Improved CORS configuration
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? ['https://trackflow.pl', 'https://www.trackflow.pl', process.env.FRONTEND_URL].filter(Boolean)
+  : [process.env.FRONTEND_URL || 'http://localhost:3000'];
+
+console.log('CORS allowed origins:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://trackflow.pl', 'https://www.trackflow.pl', process.env.FRONTEND_URL]
-    : process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked request from origin: ${origin}`);
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json()); // Parse JSON bodies
-app.use(morgan('dev')); // Request logging
+
+// Parse JSON bodies
+app.use(express.json());
+
+// Request logging
+app.use(morgan('dev'));
 
 // Add request ID to each request for tracing
 app.use((req, res, next) => {
   req.id = crypto.randomUUID();
+  next();
+});
+
+// CORS preflight options - respond to OPTIONS requests
+app.options('*', cors());
+
+// Security headers - moved after CORS to avoid conflicts
+app.use((req, res, next) => {
+  // Basic CSP for API server - restrictive but functional
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self'; connect-src 'self'"
+  );
+  
+  // Basic security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  
   next();
 });
 
@@ -41,21 +80,6 @@ app.use((req, res) => {
       path: req.path
     }
   });
-});
-
-// Security headers
-app.use((req, res, next) => {
-  // Basic CSP for API server - restrictive but functional
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self'; script-src 'self'; connect-src 'self'"
-  );
-  
-  // Basic security headers
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  
-  next();
 });
 
 // Error handler
