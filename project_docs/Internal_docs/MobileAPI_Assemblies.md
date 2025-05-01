@@ -263,8 +263,8 @@ The following test barcodes are available for development:
 
 | Barcode           | Assembly Name   | Current Status |
 |-------------------|-----------------|----------------|
-| ASM-M8KLRSNN-F8N7G| Assembly 1      | Waiting        |
-| ASM-M8KLRSD5-5XK61| Assembly 2      | Waiting  |
+| ASM-MA3WU7N4-ZT0GV| Assembly 1      | Waiting        |
+| ASM-MA3WU7N2-JL7IJ| Assembly 3      | Waiting  |
 
 ## Conclusion
 
