@@ -23,12 +23,6 @@ The mobile application will work as follows:
 - **Development**: `http://localhost:3001/api`
 - **Production**: `https://api.trackflow.pl/api`
 
-## Application Types
-
-This API supports two application types:
-1. **Web Application**: Admin/manager interface for project management and barcode generation
-2. **Mobile Application**: Worker interface for NFC authentication and assembly status updates
-
 ## Authentication
 
 The mobile app uses NFC card-based authentication without requiring conventional login credentials.
