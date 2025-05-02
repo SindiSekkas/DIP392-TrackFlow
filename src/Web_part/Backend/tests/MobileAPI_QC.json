@@ -1,0 +1,640 @@
+{
+	"info": {
+		"_postman_id": "7fd9e532-e274-4b85-8f0d-c1f2a5a9b6c8",
+		"name": "TrackFlow QC API Tests",
+		"description": "Tests for TrackFlow Quality Control API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Environment Setup",
+			"item": [
+				{
+					"name": "Set Environment Variables",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Store environment variables for the tests",
+									"pm.environment.set(\"baseUrl\", \"http://localhost:3001/api\");",
+									"pm.environment.set(\"nfcCardId\", \"73:3A:79:25\");",
+									"pm.environment.set(\"testAssemblyBarcode\", \"ASM-MA3WU7N6-P42NG\");",
+									"pm.environment.set(\"assemblyId\", \"\"); // Will be populated after scanning barcode",
+									"pm.environment.set(\"userId\", \"\"); // Will be populated after NFC validation",
+									"",
+									"console.log(\"Environment variables set successfully\");",
+									"pm.test(\"Environment setup complete\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Initialize environment variables and verify API is running"
+					},
+					"response": []
+				}
+			],
+			"description": "Set up environment variables for testing"
+		},
+		{
+			"name": "1. Authentication",
+			"item": [
+				{
+					"name": "Validate NFC Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 200 OK",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Parse the response JSON",
+									"var jsonData = pm.response.json();",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has data object\", function () {",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.be.an('object');",
+									"});",
+									"",
+									"// Test user details",
+									"pm.test(\"Response contains user details\", function () {",
+									"    pm.expect(jsonData.data).to.have.property('userId');",
+									"    pm.expect(jsonData.data).to.have.property('fullName');",
+									"    pm.expect(jsonData.data).to.have.property('role');",
+									"    pm.expect(jsonData.data).to.have.property('cardId');",
+									"});",
+									"",
+									"// Store user ID for subsequent requests",
+									"if (jsonData.data && jsonData.data.userId) {",
+									"    pm.environment.set(\"userId\", jsonData.data.userId);",
+									"    console.log(\"User ID stored: \" + jsonData.data.userId);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cardId\": \"{{nfcCardId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/nfc/validate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"nfc",
+								"validate"
+							]
+						},
+						"description": "Validate NFC card and get user information"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication tests for the QC API"
+		},
+		{
+			"name": "2. Get Assembly",
+			"item": [
+				{
+					"name": "Get Assembly by Barcode",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 200 OK",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Parse response JSON",
+									"var jsonData = pm.response.json();",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has data object\", function () {",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.be.an('object');",
+									"});",
+									"",
+									"// Test assembly details",
+									"pm.test(\"Response contains assembly details\", function () {",
+									"    pm.expect(jsonData.data).to.have.property('id');",
+									"    pm.expect(jsonData.data).to.have.property('name');",
+									"    pm.expect(jsonData.data).to.have.property('status');",
+									"});",
+									"",
+									"// Store assembly ID for subsequent requests",
+									"if (jsonData.data && jsonData.data.id) {",
+									"    pm.environment.set(\"assemblyId\", jsonData.data.id);",
+									"    console.log(\"Assembly ID stored: \" + jsonData.data.id);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/barcode/{{testAssemblyBarcode}}?userId={{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"barcode",
+								"{{testAssemblyBarcode}}"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								}
+							]
+						},
+						"description": "Get assembly details by scanning its barcode"
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for retrieving assembly information"
+		},
+		{
+			"name": "3. QC Notes",
+			"item": [
+				{
+					"name": "Update Assembly QC Notes",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 200 OK",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Parse response JSON",
+									"var jsonData = pm.response.json();",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has data object\", function () {",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.be.an('object');",
+									"});",
+									"",
+									"// Test QC notes were updated",
+									"pm.test(\"QC notes were updated\", function () {",
+									"    pm.expect(jsonData.data).to.have.property('quality_control_status');",
+									"    pm.expect(jsonData.data).to.have.property('quality_control_notes');",
+									"    pm.expect(jsonData.data).to.have.property('message');",
+									"    ",
+									"    // Verify updated values match what we sent",
+									"    pm.expect(jsonData.data.quality_control_status).to.equal(\"In Progress\");",
+									"    pm.expect(jsonData.data.quality_control_notes).to.include(\"Test QC notes\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"qcStatus\": \"In Progress\",\n    \"notes\": \"Test QC notes - inspection in progress\",\n    \"userId\": \"{{userId}}\",\n    \"cardId\": \"{{nfcCardId}}\",\n    \"deviceInfo\": {\n        \"deviceType\": \"Postman Test\",\n        \"appVersion\": \"1.0.0\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/{{assemblyId}}/qc-notes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"{{assemblyId}}",
+								"qc-notes"
+							]
+						},
+						"description": "Update the overall QC notes and status for an assembly"
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for updating QC notes"
+		},
+		{
+			"name": "4. QC Images",
+			"item": [
+				{
+					"name": "Upload QC Image",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 201 Created",
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"// Parse response JSON",
+									"var jsonData = pm.response.json();",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has data object with qc_image\", function () {",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.be.an('object');",
+									"    pm.expect(jsonData.data).to.have.property('qc_image');",
+									"});",
+									"",
+									"// Store QC image ID for subsequent tests if needed",
+									"if (jsonData.data && jsonData.data.qc_image && jsonData.data.qc_image.id) {",
+									"    pm.environment.set(\"qcImageId\", jsonData.data.qc_image.id);",
+									"    console.log(\"QC Image ID stored: \" + jsonData.data.qc_image.id);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "image",
+									"type": "file",
+									"src": "/path/to/test-image.jpg",
+									"description": "Replace with actual test image path"
+								},
+								{
+									"key": "qcStatus",
+									"value": "Failed",
+									"type": "text"
+								},
+								{
+									"key": "notes",
+									"value": "Test defect - scratch on surface",
+									"type": "text"
+								},
+								{
+									"key": "userId",
+									"value": "{{userId}}",
+									"type": "text"
+								},
+								{
+									"key": "cardId",
+									"value": "{{nfcCardId}}",
+									"type": "text"
+								},
+								{
+									"key": "deviceInfo",
+									"value": "{\"deviceType\": \"Postman Test\", \"appVersion\": \"1.0.0\"}",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/{{assemblyId}}/qc-upload",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"{{assemblyId}}",
+								"qc-upload"
+							]
+						},
+						"description": "Upload a QC image with issue details"
+					},
+					"response": []
+				},
+				{
+					"name": "Get QC Images",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 200 OK",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"// Parse response JSON",
+									"var jsonData = pm.response.json();",
+									"",
+									"// Test response structure",
+									"pm.test(\"Response has data array\", function () {",
+									"    pm.expect(jsonData).to.have.property('data');",
+									"    pm.expect(jsonData.data).to.be.an('array');",
+									"});",
+									"",
+									"// Test if any QC images are returned",
+									"pm.test(\"QC images retrieved\", function () {",
+									"    if (jsonData.data.length > 0) {",
+									"        // Check first image has required properties",
+									"        pm.expect(jsonData.data[0]).to.have.property('id');",
+									"        pm.expect(jsonData.data[0]).to.have.property('assembly_id');",
+									"        pm.expect(jsonData.data[0]).to.have.property('image_url');",
+									"        pm.expect(jsonData.data[0]).to.have.property('notes');",
+									"        ",
+									"        console.log(\"Retrieved \" + jsonData.data.length + \" QC images\");",
+									"    } else {",
+									"        console.log(\"No QC images found for this assembly\");",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"userId\": \"{{userId}}\",\n    \"cardId\": \"{{nfcCardId}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/{{assemblyId}}/qc-images",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"{{assemblyId}}",
+								"qc-images"
+							]
+						},
+						"description": "Get all QC images for an assembly"
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for QC image upload and retrieval"
+		},
+		{
+			"name": "5. Error Handling",
+			"item": [
+				{
+					"name": "Invalid NFC Card",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 404 Not Found",
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// Test error response structure",
+									"pm.test(\"Response has error object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cardId\": \"INVALID-CARD-12345\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/nfc/validate",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"nfc",
+								"validate"
+							]
+						},
+						"description": "Test error handling with an invalid NFC card"
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Assembly Barcode",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 404 Not Found",
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// Test error response structure",
+									"pm.test(\"Response has error object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/barcode/INVALID-BARCODE?userId={{userId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"barcode",
+								"INVALID-BARCODE"
+							],
+							"query": [
+								{
+									"key": "userId",
+									"value": "{{userId}}"
+								}
+							]
+						},
+						"description": "Test error handling with an invalid assembly barcode"
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Assembly ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Test response code is 404 Not Found",
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"// Test error response structure",
+									"pm.test(\"Response has error object\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"    pm.expect(jsonData.error).to.have.property('message');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"qcStatus\": \"Passed\",\n    \"notes\": \"Test QC notes\",\n    \"userId\": \"{{userId}}\",\n    \"cardId\": \"{{nfcCardId}}\",\n    \"deviceInfo\": {\n        \"deviceType\": \"Postman Test\",\n        \"appVersion\": \"1.0.0\"\n    }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/mobile/assemblies/00000000-0000-0000-0000-000000000000/qc-notes",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"mobile",
+								"assemblies",
+								"00000000-0000-0000-0000-000000000000",
+								"qc-notes"
+							]
+						},
+						"description": "Test error handling with an invalid assembly ID"
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for API error handling"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global Pre-request Script for Collection",
+					"// This runs before every request",
+					"",
+					"// Check if we have the required environment variables",
+					"if (!pm.environment.get(\"baseUrl\")) {",
+					"    console.error(\"Environment variable 'baseUrl' is not set\");",
+					"}",
+					"",
+					"// Add request timestamp for logging",
+					"pm.variables.set(\"requestTimestamp\", new Date().toISOString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global Test Script for Collection",
+					"// This runs after every request",
+					"",
+					"// Log request info",
+					"console.log(pm.info.requestName + \" - Status: \" + pm.response.code);",
+					"",
+					"// Basic response time check",
+					"pm.test(\"Response time is acceptable\", function() {",
+					"    // Adjust the threshold as needed for your environment",
+					"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+					"});",
+					"",
+					"// Check for valid content type in responses",
+					"if (pm.response.headers.get(\"Content-Type\")) {",
+					"    pm.test(\"Content-Type header exists\", function() {",
+					"        pm.response.to.have.header(\"Content-Type\");",
+					"    });",
+					"    ",
+					"    pm.test(\"Content-Type is JSON\", function() {",
+					"        pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/json\");",
+					"    });",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001/api",
+			"type": "string"
+		}
+	]
+}
