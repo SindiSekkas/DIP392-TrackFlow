@@ -13,9 +13,10 @@ import {
   CheckCircle,
   Printer,
   Info as InfoIcon,
-  AlertCircle // Added AlertCircle import
+  AlertCircle, // Added AlertCircle import
+  Image as ImageIcon
 } from 'lucide-react';
-import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
+import { AssemblyWithProject, AssemblyDrawing, assembliesApi, QCImage } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
 import { supabase } from '../../lib/supabase';
 import JsBarcode from 'jsbarcode';
@@ -32,6 +33,8 @@ const AssemblyDetailsPage: React.FC = () => {
   const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showParentWarning, setShowParentWarning] = useState(false); // New state variable
+  const [qcImages, setQcImages] = useState<QCImage[]>([]);
+  const [qcImagesLoading, setQcImagesLoading] = useState(false);
   const barcodeContainerRef = useRef<HTMLDivElement>(null);
 
   // Handle back navigation
@@ -75,6 +78,18 @@ const AssemblyDetailsPage: React.FC = () => {
         // Fetch barcode if exists
         const barcodeData = await assembliesApi.getAssemblyBarcode(id);
         setBarcodeData(barcodeData);
+        
+        // Fetch QC images
+        setQcImagesLoading(true);
+        try {
+          const qcImagesData = await assembliesApi.getQCImages(id);
+          setQcImages(qcImagesData);
+        } catch (qcErr) {
+          console.error('Error fetching QC images:', qcErr);
+          // Non-critical error, don't set main error state
+        } finally {
+          setQcImagesLoading(false);
+        }
         
         setError(null);
       } catch (err) {
@@ -391,6 +406,40 @@ const AssemblyDetailsPage: React.FC = () => {
                 )}
               </div>
             )}
+            
+            {/* QC Images Section */}
+            <div className="mt-4 pb-4 border-b border-gray-200">
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-sm font-medium text-gray-700 flex items-center">
+                  <ImageIcon size={16} className="mr-2 text-gray-500" />
+                  Quality Control Images
+                </p>
+                {qcImages.length > 0 && (
+                  <Link
+                    to={`/dashboard/assemblies/${assembly.id}/qc-images`}
+                    className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800"
+                  >
+                    View all
+                  </Link>
+                )}
+              </div>
+              
+              {qcImagesLoading ? (
+                <div className="flex justify-center items-center h-20">
+                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                </div>
+              ) : qcImages.length === 0 ? (
+                <div className="text-center py-4 bg-gray-50 rounded">
+                  <p className="text-sm text-gray-500">No QC images available</p>
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-gray-50 rounded">
+                  <p className="text-sm text-gray-500">
+                    {qcImages.length} QC {qcImages.length === 1 ? 'image' : 'images'} available
+                  </p>
+                </div>
+              )}
+            </div>
             
             {/* Removed timestamp information from here */}
           </div>

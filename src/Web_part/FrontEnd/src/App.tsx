@@ -20,6 +20,7 @@ import AssemblyDetailsPage from './pages/Assemblies/AssemblyDetailsPage';
 import CreateAssemblyPage from './pages/Assemblies/CreateAssemblyPage';
 import EditAssemblyPage from './pages/Assemblies/EditAssemblyPage';
 import CreateMultipleAssembliesPage from './pages/Assemblies/CreateMultipleAssembliesPage';
+import AssemblyQcPhotosPage from './components/Assemblies/AssemblyQcPhotosPage'; // Added import
 import ClientsPage from './pages/Clients/ClientsPage';
 import ClientDetailsPage from './pages/Clients/ClientDetailsPage';
 import CreateClientPage from './pages/Clients/CreateClientPage';
@@ -126,6 +127,13 @@ function App() {
                             <Route path="/dashboard/assemblies/:id/edit" element={
                                 <Layout>
                                     <EditAssemblyPage />
+                                </Layout>
+                            } />
+
+                            {/* Added route for Assembly QC Photos */}
+                            <Route path="/dashboard/assemblies/:id/qc-images" element={
+                                <Layout>
+                                    <AssemblyQcPhotosPage />
                                 </Layout>
                             } />
                             
