@@ -77,7 +77,7 @@ const uploadQCImage = async () => {
     const form = new FormData();
     form.append('image', fs.createReadStream(TEST_IMAGE_PATH));
     form.append('qcStatus', 'Passed');
-    form.append('notes', 'Test QC image uploaded via API test script');
+    form.append('notes', 'Test QCsss image uploaded via API test script');
     form.append('userId', userId);
     form.append('cardId', TEST_NFC_CARD);
     form.append('deviceInfo', JSON.stringify({
@@ -85,7 +85,7 @@ const uploadQCImage = async () => {
       appVersion: '1.0.0'
     }));
     
-    const response = await fetch(`${API_URL}/mobile/assemblies/${testAssemblyId}/qc`, {
+    const response = await fetch(`${API_URL}/mobile/assemblies/${testAssemblyId}/qc-upload`, {
       method: 'POST',
       body: form
     });
@@ -105,6 +105,68 @@ const uploadQCImage = async () => {
   }
 };
 
+// Step 3: Retrieve QC image (using mobile endpoint with POST to send body)
+const retrieveQCImage = async () => {
+  if (!uploadedQcImageId) {
+    logError('Cannot retrieve QC image: No image ID available from upload step.');
+    return null;
+  }
+  if (!testAssemblyId) {
+    logError('Cannot retrieve QC image: No testAssemblyId available.');
+    return null;
+  }
+  if (!userId) {
+    logError('Cannot retrieve QC image: No userId available from authentication step.');
+    return null;
+  }
+
+  try {
+    logStep(`Retrieving QC images for assembly ID: ${testAssemblyId} via mobile endpoint (using POST)`);
+
+    // Use the same URL but change method to POST
+    const retrieveUrl = `${API_URL}/mobile/assemblies/${testAssemblyId}/qc-images`;
+
+    // Use POST and send userId/cardId in the body, as expected by verifyNfcCard middleware
+    const response = await fetch(retrieveUrl, {
+      method: 'POST', // Changed from GET to POST
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ // Added body with credentials
+        userId: userId,
+        cardId: TEST_NFC_CARD
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+    }
+
+    const data = await response.json();
+
+    // Check if the response contains the uploaded image ID
+    const images = data.data?.qc_images || data.data || data;
+
+    if (!Array.isArray(images)) {
+      throw new Error('Expected an array of images in the response');
+    }
+
+    const foundImage = images.find(img => img.id === uploadedQcImageId);
+
+    if (foundImage) {
+      logSuccess(`Successfully verified that uploaded QC image ID ${uploadedQcImageId} exists for assembly ${testAssemblyId}`);
+      return foundImage;
+    } else {
+      throw new Error(`Uploaded QC image ID ${uploadedQcImageId} not found in the list for assembly ${testAssemblyId}`);
+    }
+
+  } catch (error) {
+    logError('Failed to retrieve or verify QC image', error);
+    return null;
+  }
+};
+
+
 // Main function
 const runTests = async () => {
   console.log('Starting Mobile QC API Test');
@@ -112,6 +174,7 @@ const runTests = async () => {
   
   await authenticateWithNFC();
   await uploadQCImage();
+  await retrieveQCImage(); // Add the retrieve step here
   
   console.log('\n=== Test completed ===');
 };

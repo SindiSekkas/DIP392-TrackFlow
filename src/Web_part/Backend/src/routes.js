@@ -187,13 +187,23 @@ mobileRouter.delete(
 
 // Mobile QC image upload endpoint
 mobileRouter.post(
-  '/assemblies/:assemblyId/qc',
+  '/assemblies/:assemblyId/qc-upload',
   upload.single('image'), // <-- Moved to BEFORE authentication
   mobileAuthenticate,
   verifyNfcCard,
   validate(qcImageValidationRules.uploadQCImage),
   logMobileOperation('upload_qc_image'),
   qualityControlController.uploadQCImage
+);
+
+// Mobile QC image retrieval endpoint (Changed to POST to accept body for auth)
+mobileRouter.post( // <-- Changed from GET to POST
+  '/assemblies/:assemblyId/qc-images',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(qcImageValidationRules.getQCImages),
+  logMobileOperation('get_qc_images'),
+  qualityControlController.getQCImages
 );
 
 
