@@ -1,4 +1,3 @@
-// src/pages/Assemblies/AssemblyDetailsPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -38,6 +37,11 @@ const AssemblyDetailsPage: React.FC = () => {
   const [editQcStatus, setEditQcStatus] = useState('');
   const [savingQcNote, setSavingQcNote] = useState(false);
   const barcodeContainerRef = useRef<HTMLDivElement>(null);
+  
+  // New refs for measuring content height
+  const specificationsRef = useRef<HTMLDivElement>(null);
+  const drawingRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<string | null>(null);
 
   // Handle back navigation
   const handleBackNavigation = () => {
@@ -100,6 +104,26 @@ const AssemblyDetailsPage: React.FC = () => {
 
     fetchAssemblyData();
   }, [id, navigate]);
+  
+  // New useEffect to adjust container heights
+  useEffect(() => {
+    // Wait a bit for content to render before measuring
+    const timer = setTimeout(() => {
+      if (specificationsRef.current && drawingRef.current && !loading) {
+        // Get the scroll height (total content height) of both containers
+        const specsHeight = specificationsRef.current.scrollHeight;
+        const drawingHeight = drawingRef.current.scrollHeight;
+        
+        // Use the larger of the two heights, with a minimum of 600px
+        const maxHeight = Math.max(specsHeight, drawingHeight, 600);
+        
+        // Set the container height
+        setContainerHeight(`${maxHeight}px`);
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [assembly, drawing, loading]);
 
   // Render barcode when barcodeData changes
   useEffect(() => {
@@ -113,7 +137,7 @@ const AssemblyDetailsPage: React.FC = () => {
           JsBarcode(barcodeSvg, barcodeData.barcode, {
             format: "CODE128",
             width: 2,
-            height: 50,
+            height: 35, // Reduced from 50 to 35 to make the barcode shorter
             displayValue: true,
             fontSize: 14,
             margin: 10
@@ -296,7 +320,11 @@ const AssemblyDetailsPage: React.FC = () => {
             Assembly Specifications
           </h3>
           
-          <div className="bg-gray-50 rounded border border-gray-200 p-4 h-[600px] overflow-y-auto"> 
+          <div 
+            ref={specificationsRef}
+            className="bg-gray-50 rounded border border-gray-200 p-4"
+            style={{ height: containerHeight || 'auto' }}
+          > 
             {assembly.project && (
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500 mb-1">Project</p>
@@ -364,7 +392,6 @@ const AssemblyDetailsPage: React.FC = () => {
                 {barcodeData ? (
                   <div className="flex flex-col items-center">
                     <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
-                    <div className="text-xs text-gray-500">{barcodeData.barcode}</div>
                     <div className="mt-2 flex space-x-2">
                       <button
                         onClick={handlePrintBarcode}
@@ -426,7 +453,11 @@ const AssemblyDetailsPage: React.FC = () => {
           </h3>
           
           {drawing ? (
-            <div className="bg-gray-50 rounded border border-gray-200 p-4 mb-6 h-[600px] overflow-y-auto">
+            <div 
+              ref={drawingRef}
+              className="bg-gray-50 rounded border border-gray-200 p-4 mb-6"
+              style={{ height: containerHeight || 'auto' }}
+            >
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <p className="text-gray-700">{drawing.file_name}</p>
@@ -453,7 +484,7 @@ const AssemblyDetailsPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* PDF Viewer with fixed height and scrollable content */}
+              {/* PDF Viewer with dynamic height based on container */}
               <div className="mt-3 border border-gray-300 rounded overflow-hidden">
                 {/* Indicator for inherited drawings */}
                 {drawing?.inherited_from_parent && (
@@ -480,7 +511,11 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center h-[600px]">
+            <div 
+              ref={drawingRef}
+              className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center"
+              style={{ height: containerHeight || 'auto' }}
+            >
               <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
               <Link
                 to={`/dashboard/assemblies/${assembly.id}/edit`}
