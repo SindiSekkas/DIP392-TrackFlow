@@ -6,7 +6,8 @@ This document outlines the API endpoints for the mobile logistics barcode scanni
 
 ## API Base URL
 
-- **Development**: `http://localhost:3001/api` or as configured in environment variable `API_URL`
+- **Development**: `http://localhost:3001` 
+- **Production**: `https://api.trackflow.com`
 
 ## Authentication
 
