@@ -23,6 +23,7 @@ The mobile application will work as follows:
 - **Development**: `http://localhost:3001`
 - **Production**: `https://api.trackflow.pl`
 
+
 ## Authentication
 
 The mobile app uses NFC card-based authentication without requiring conventional login credentials.
