@@ -20,14 +20,9 @@ The mobile application will work as follows:
 
 ## API Base URL
 
-- **Development**: `http://localhost:3001/api`
-- **Production**: `https://api.trackflow.pl/api`
+- **Development**: `http://localhost:3001`
+- **Production**: `https://api.trackflow.pl`
 
-## Application Types
-
-This API supports two application types:
-1. **Web Application**: Admin/manager interface for project management and barcode generation
-2. **Mobile Application**: Worker interface for NFC authentication and assembly status updates
 
 ## Authentication
 
@@ -263,8 +258,8 @@ The following test barcodes are available for development:
 
 | Barcode           | Assembly Name   | Current Status |
 |-------------------|-----------------|----------------|
-| ASM-M8KLRSNN-F8N7G| Assembly 1      | Waiting        |
-| ASM-M8KLRSD5-5XK61| Assembly 2      | Waiting  |
+| ASM-MA3WU7N4-ZT0GV| Assembly 1      | Waiting        |
+| ASM-MA3WU7N2-JL7IJ| Assembly 3      | Waiting  |
 
 ## Conclusion
 

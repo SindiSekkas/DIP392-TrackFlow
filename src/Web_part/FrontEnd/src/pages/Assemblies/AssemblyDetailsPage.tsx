@@ -1,4 +1,3 @@
-// src/pages/Assemblies/AssemblyDetailsPage.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
@@ -10,10 +9,11 @@ import {
   Download,
   Eye,
   Clock,
-  CheckCircle,
   Printer,
-  Info as InfoIcon,
-  AlertCircle // Added AlertCircle import
+  InfoIcon, 
+  AlertCircle,
+  ImageIcon,
+  Camera
 } from 'lucide-react';
 import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
@@ -31,8 +31,17 @@ const AssemblyDetailsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showParentWarning, setShowParentWarning] = useState(false); // New state variable
+  const [showParentWarning, setShowParentWarning] = useState(false);
+  const [isEditingQcNote, setIsEditingQcNote] = useState(false);
+  const [editQcNote, setEditQcNote] = useState('');
+  const [editQcStatus, setEditQcStatus] = useState('');
+  const [savingQcNote, setSavingQcNote] = useState(false);
   const barcodeContainerRef = useRef<HTMLDivElement>(null);
+  
+  // New refs for measuring content height
+  const specificationsRef = useRef<HTMLDivElement>(null);
+  const drawingRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState<string | null>(null);
 
   // Handle back navigation
   const handleBackNavigation = () => {
@@ -76,6 +85,14 @@ const AssemblyDetailsPage: React.FC = () => {
         const barcodeData = await assembliesApi.getAssemblyBarcode(id);
         setBarcodeData(barcodeData);
         
+        // Initialize QC note state with assembly values
+        if (assemblyData.quality_control_notes) {
+          setEditQcNote(assemblyData.quality_control_notes);
+        }
+        if (assemblyData.quality_control_status) {
+          setEditQcStatus(assemblyData.quality_control_status);
+        }
+        
         setError(null);
       } catch (err) {
         console.error('Error fetching assembly data:', err);
@@ -87,6 +104,26 @@ const AssemblyDetailsPage: React.FC = () => {
 
     fetchAssemblyData();
   }, [id, navigate]);
+  
+  // New useEffect to adjust container heights
+  useEffect(() => {
+    // Wait a bit for content to render before measuring
+    const timer = setTimeout(() => {
+      if (specificationsRef.current && drawingRef.current && !loading) {
+        // Get the scroll height (total content height) of both containers
+        const specsHeight = specificationsRef.current.scrollHeight;
+        const drawingHeight = drawingRef.current.scrollHeight;
+        
+        // Use the larger of the two heights, with a minimum of 600px
+        const maxHeight = Math.max(specsHeight, drawingHeight, 600);
+        
+        // Set the container height
+        setContainerHeight(`${maxHeight}px`);
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [assembly, drawing, loading]);
 
   // Render barcode when barcodeData changes
   useEffect(() => {
@@ -100,7 +137,7 @@ const AssemblyDetailsPage: React.FC = () => {
           JsBarcode(barcodeSvg, barcodeData.barcode, {
             format: "CODE128",
             width: 2,
-            height: 50,
+            height: 35, // Reduced from 50 to 35 to make the barcode shorter
             displayValue: true,
             fontSize: 14,
             margin: 10
@@ -168,6 +205,36 @@ const AssemblyDetailsPage: React.FC = () => {
     }
   };
 
+  // Add function to save QC notes
+  const handleSaveQcNote = async () => {
+    if (!assembly?.id) return;
+    
+    try {
+      setSavingQcNote(true);
+      
+      const updatedData = {
+        quality_control_notes: editQcNote,
+        quality_control_status: editQcStatus
+      };
+      
+      await assembliesApi.updateAssembly(assembly.id, updatedData);
+      
+      // Update local state
+      setAssembly({
+        ...assembly,
+        quality_control_notes: editQcNote,
+        quality_control_status: editQcStatus
+      });
+      
+      setIsEditingQcNote(false);
+    } catch (err) {
+      console.error('Failed to update QC notes:', err);
+      alert('Failed to save quality control notes. Please try again.');
+    } finally {
+      setSavingQcNote(false);
+    }
+  };
+  
   if (loading) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-md flex justify-center items-center min-h-[300px]">
@@ -253,7 +320,11 @@ const AssemblyDetailsPage: React.FC = () => {
             Assembly Specifications
           </h3>
           
-          <div className="bg-gray-50 rounded border border-gray-200 p-4 h-[600px] overflow-y-auto"> 
+          <div 
+            ref={specificationsRef}
+            className="bg-gray-50 rounded border border-gray-200 p-4"
+            style={{ height: containerHeight || 'auto' }}
+          > 
             {assembly.project && (
               <div className="mb-4 pb-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500 mb-1">Project</p>
@@ -321,7 +392,6 @@ const AssemblyDetailsPage: React.FC = () => {
                 {barcodeData ? (
                   <div className="flex flex-col items-center">
                     <div id="barcode-container" ref={barcodeContainerRef} className="mb-2"></div>
-                    <div className="text-xs text-gray-500">{barcodeData.barcode}</div>
                     <div className="mt-2 flex space-x-2">
                       <button
                         onClick={handlePrintBarcode}
@@ -371,27 +441,6 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Quality Control - Moved inside specs section */}
-            {(assembly.quality_control_status || assembly.quality_control_notes) && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                  <CheckCircle size={16} className="mr-2 text-gray-500" />
-                  Quality Control
-                </p>
-                {assembly.quality_control_status && (
-                  <p className="text-gray-700 mb-1">Status: {assembly.quality_control_status}</p>
-                )}
-                {assembly.quality_control_notes && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-1">Notes</p>
-                    <div className="text-gray-700 whitespace-pre-line bg-white p-3 rounded border border-gray-200">
-                      {assembly.quality_control_notes}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            
             {/* Removed timestamp information from here */}
           </div>
         </div>
@@ -404,7 +453,11 @@ const AssemblyDetailsPage: React.FC = () => {
           </h3>
           
           {drawing ? (
-            <div className="bg-gray-50 rounded border border-gray-200 p-4 mb-6 h-[600px] overflow-y-auto">
+            <div 
+              ref={drawingRef}
+              className="bg-gray-50 rounded border border-gray-200 p-4 mb-6"
+              style={{ height: containerHeight || 'auto' }}
+            >
               <div className="flex justify-between items-center mb-3">
                 <div>
                   <p className="text-gray-700">{drawing.file_name}</p>
@@ -431,7 +484,7 @@ const AssemblyDetailsPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* PDF Viewer with fixed height and scrollable content */}
+              {/* PDF Viewer with dynamic height based on container */}
               <div className="mt-3 border border-gray-300 rounded overflow-hidden">
                 {/* Indicator for inherited drawings */}
                 {drawing?.inherited_from_parent && (
@@ -458,7 +511,11 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center h-[600px]">
+            <div 
+              ref={drawingRef}
+              className="bg-gray-50 p-6 rounded-md text-center border border-gray-200 mb-6 flex flex-col justify-center items-center"
+              style={{ height: containerHeight || 'auto' }}
+            >
               <p className="text-gray-500 mb-4">No drawing available for this assembly.</p>
               <Link
                 to={`/dashboard/assemblies/${assembly.id}/edit`}
@@ -466,6 +523,132 @@ const AssemblyDetailsPage: React.FC = () => {
               >
                 <span className="text-white">Upload Drawing</span>
               </Link>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Quality Control Section - Redesigned */}
+      <div className="mb-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-sm font-medium text-gray-700 flex items-center">
+            <Camera size={18} className="mr-2 text-gray-500" />
+            Quality Control
+          </h3>
+          <Link
+            to={`/dashboard/assemblies/${assembly.id}/qc-images`}
+            className="text-xs px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center"
+          >
+            <ImageIcon size={14} className="mr-1" />
+            Manage QC
+          </Link>
+        </div>
+        
+        <div className="p-4">
+          {/* QC Status Section */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium text-gray-700">Status</p>
+              {!isEditingQcNote && (
+                <button
+                  onClick={() => setIsEditingQcNote(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {assembly.quality_control_notes || assembly.quality_control_status ? 'Edit' : 'Add Details'}
+                </button>
+              )}
+            </div>
+            
+            {isEditingQcNote ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    QC Status
+                  </label>
+                  <select
+                    value={editQcStatus}
+                    onChange={(e) => setEditQcStatus(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Passed">Passed</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Conditional Pass">Conditional Pass</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    QC Notes
+                  </label>
+                  <textarea
+                    value={editQcNote}
+                    onChange={(e) => setEditQcNote(e.target.value)}
+                    rows={4}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="Enter quality control notes..."
+                  ></textarea>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => {
+                      setIsEditingQcNote(false);
+                      setEditQcNote(assembly.quality_control_notes || '');
+                      setEditQcStatus(assembly.quality_control_status || '');
+                    }}
+                    className="px-3 py-1 border border-gray-300 text-xs text-gray-700 rounded-md hover:bg-gray-50"
+                    disabled={savingQcNote}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveQcNote}
+                    className="px-3 py-1 bg-blue-600 text-xs text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    disabled={savingQcNote}
+                  >
+                    {savingQcNote ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              assembly.quality_control_status ? (
+                <div className="flex items-center">
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                    assembly.quality_control_status === 'Passed'
+                      ? 'bg-green-100 text-green-800'
+                      : assembly.quality_control_status === 'Failed'
+                      ? 'bg-red-100 text-red-800'
+                      : assembly.quality_control_status === 'Not Started'
+                      ? 'bg-gray-100 text-gray-800'
+                      : assembly.quality_control_status === 'In Progress'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {assembly.quality_control_status}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic">
+                  Not set
+                </div>
+              )
+            )}
+          </div>
+          
+          {/* QC Notes Section */}
+          {!isEditingQcNote && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Notes</p>
+              {assembly.quality_control_notes ? (
+                <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border border-gray-200 whitespace-pre-line">
+                  {assembly.quality_control_notes}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic">
+                  None
+                </div>
+              )}
             </div>
           )}
         </div>

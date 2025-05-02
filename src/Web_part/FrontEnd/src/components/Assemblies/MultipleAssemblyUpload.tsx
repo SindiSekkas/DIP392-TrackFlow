@@ -88,7 +88,7 @@ const MultipleAssemblyUpload: React.FC<MultipleAssemblyUploadProps> = ({ project
   const [activeTab, setActiveTab] = useState<'manual' | 'excel'>('manual');
   const [globalValues, setGlobalValues] = useState<GlobalValues>({});
   const [dragActive, setDragActive] = useState(false);
-  const [pdfDragActive, setPdfDragActive] = useState(false);  // Add this line
+  const [pdfDragActive, setPdfDragActive] = useState(false); 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   

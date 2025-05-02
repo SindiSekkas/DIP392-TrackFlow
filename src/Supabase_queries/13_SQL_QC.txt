@@ -1,0 +1,16 @@
+-- Create table for QC images
+CREATE TABLE assembly_qc_images (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  assembly_id UUID NOT NULL REFERENCES assemblies(id) ON DELETE CASCADE,
+  image_path TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  content_type TEXT NOT NULL,
+  notes TEXT,
+  qc_status TEXT,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add index for faster queries
+CREATE INDEX idx_assembly_qc_images_assembly_id ON assembly_qc_images(assembly_id);

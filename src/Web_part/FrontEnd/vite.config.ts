@@ -5,20 +5,30 @@ import tailwind from '@tailwindcss/vite'
 import { fileURLToPath } from 'url'
 
 // Utility function to generate security headers
-const generateSecurityHeaders = () => ({
-  // Apply CSP in both dev and prod
-  'Content-Security-Policy': 
-	`default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co blob:; frame-src 'self' https://www.youtube.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; worker-src 'self' blob:; upgrade-insecure-requests;`,
-  'X-Content-Type-Options': 'nosniff',
-  'X-XSS-Protection': '1; mode=block',
-  'Referrer-Policy': 'strict-origin-when-cross-origin'
-})
+const generateSecurityHeaders = (isDev: boolean) => {
+  if (isDev) {
+    // Don't apply CSP in development mode
+    return {
+      'X-Content-Type-Options': 'nosniff',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin'
+    };
+  }
+  // Apply CSP in production mode
+  return {
+    'Content-Security-Policy':
+      `default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.trackflow.pl https://kvienvajqivmgzizkbxb.supabase.co wss://*.supabase.co blob:; frame-src 'self' https://www.youtube.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; worker-src 'self' blob:; upgrade-insecure-requests;`,
+    'X-Content-Type-Options': 'nosniff',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin'
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   loadEnv(mode, process.cwd(), '') // Load env files
   const isDev = mode === 'development'
-  
+
   return {
     plugins: [react(), tailwind()],
     resolve: {
@@ -29,12 +39,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: true, // Listen on all addresses, including network
-      headers: generateSecurityHeaders()
+      headers: generateSecurityHeaders(isDev) // Pass isDev flag
     },
     preview: {
       port: 3000,
       host: true, // Listen on all addresses, including network
-      headers: generateSecurityHeaders()
+      headers: generateSecurityHeaders(false) // Preview should likely use production headers
     },
     build: {
       sourcemap: isDev,
