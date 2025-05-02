@@ -16,7 +16,7 @@ import {
   ImageIcon,
   Camera
 } from 'lucide-react';
-import { AssemblyWithProject, AssemblyDrawing, assembliesApi, QCImage } from '../../lib/projectsApi';
+import { AssemblyWithProject, AssemblyDrawing, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters';
 import { supabase } from '../../lib/supabase';
 import JsBarcode from 'jsbarcode';
@@ -32,9 +32,7 @@ const AssemblyDetailsPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [barcodeData, setBarcodeData] = useState<{id: string, barcode: string} | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showParentWarning, setShowParentWarning] = useState(false); // New state variable
-  const [qcImages, setQcImages] = useState<QCImage[]>([]);
-  const [qcImagesLoading, setQcImagesLoading] = useState(false);
+  const [showParentWarning, setShowParentWarning] = useState(false);
   const [isEditingQcNote, setIsEditingQcNote] = useState(false);
   const [editQcNote, setEditQcNote] = useState('');
   const [editQcStatus, setEditQcStatus] = useState('');
@@ -83,24 +81,12 @@ const AssemblyDetailsPage: React.FC = () => {
         const barcodeData = await assembliesApi.getAssemblyBarcode(id);
         setBarcodeData(barcodeData);
         
-        // Fetch QC images
-        setQcImagesLoading(true);
-        try {
-          const qcImagesData = await assembliesApi.getQCImages(id);
-          setQcImages(qcImagesData);
-          
-          // Initialize QC note state with assembly values
-          if (assemblyData.quality_control_notes) {
-            setEditQcNote(assemblyData.quality_control_notes);
-          }
-          if (assemblyData.quality_control_status) {
-            setEditQcStatus(assemblyData.quality_control_status);
-          }
-        } catch (qcErr) {
-          console.error('Error fetching QC images:', qcErr);
-          // Non-critical error, don't set main error state
-        } finally {
-          setQcImagesLoading(false);
+        // Initialize QC note state with assembly values
+        if (assemblyData.quality_control_notes) {
+          setEditQcNote(assemblyData.quality_control_notes);
+        }
+        if (assemblyData.quality_control_status) {
+          setEditQcStatus(assemblyData.quality_control_status);
         }
         
         setError(null);
@@ -428,139 +414,6 @@ const AssemblyDetailsPage: React.FC = () => {
               </div>
             </div>
             
-            {/* QC Section */}
-            <div className="mt-4 pb-4 border-b border-gray-200">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-medium text-gray-700 flex items-center">
-                  <Camera size={16} className="mr-2 text-gray-500" />
-                  Quality Control
-                </p>
-                {!isEditingQcNote && (
-                  <button
-                    onClick={() => setIsEditingQcNote(true)}
-                    className="text-xs text-blue-600 hover:text-blue-800"
-                  >
-                    {assembly.quality_control_notes || assembly.quality_control_status ? 'Edit Notes' : 'Add Notes'}
-                  </button>
-                )}
-              </div>
-              
-              {isEditingQcNote ? (
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      QC Status
-                    </label>
-                    <select
-                      value={editQcStatus}
-                      onChange={(e) => setEditQcStatus(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Not specified</option>
-                      <option value="Not Started">Not Started</option>
-                      <option value="In Progress">In Progress</option>
-                      <option value="Passed">Passed</option>
-                      <option value="Failed">Failed</option>
-                      <option value="Conditional Pass">Conditional Pass</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      QC Notes
-                    </label>
-                    <textarea
-                      value={editQcNote}
-                      onChange={(e) => setEditQcNote(e.target.value)}
-                      rows={4}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                      placeholder="Enter quality control notes..."
-                    ></textarea>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      onClick={() => {
-                        setIsEditingQcNote(false);
-                        setEditQcNote(assembly.quality_control_notes || '');
-                        setEditQcStatus(assembly.quality_control_status || '');
-                      }}
-                      className="px-3 py-1 border border-gray-300 text-xs text-gray-700 rounded-md hover:bg-gray-50"
-                      disabled={savingQcNote}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveQcNote}
-                      className="px-3 py-1 bg-blue-600 text-xs text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                      disabled={savingQcNote}
-                    >
-                      {savingQcNote ? 'Saving...' : 'Save Notes'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  {assembly.quality_control_status ? (
-                    <div className="mb-2">
-                      <span className="text-xs text-gray-500">Status: </span>
-                      <span className={`inline-block px-2 py-0.5 rounded-sm text-xs font-medium ${
-                        assembly.quality_control_status === 'Passed'
-                          ? 'bg-green-100 text-green-800'
-                          : assembly.quality_control_status === 'Failed'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {assembly.quality_control_status}
-                      </span>
-                    </div>
-                  ) : null}
-                  
-                  {assembly.quality_control_notes ? (
-                    <div className="text-sm text-gray-700 bg-gray-50 p-2 rounded border border-gray-200 whitespace-pre-line">
-                      {assembly.quality_control_notes}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-gray-500 italic">
-                      No overall quality control notes.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {/* QC Images Section */}
-            <div className="mt-4 pb-4 border-b border-gray-200">
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm font-medium text-gray-700 flex items-center">
-                  <ImageIcon size={16} className="mr-2 text-gray-500" />
-                  Quality Control Images
-                </p>
-                {qcImages.length > 0 && (
-                  <Link
-                    to={`/dashboard/assemblies/${assembly.id}/qc-images`}
-                    className="inline-flex items-center text-xs text-blue-600 hover:text-blue-800"
-                  >
-                    View all
-                  </Link>
-                )}
-              </div>
-              
-              {qcImagesLoading ? (
-                <div className="flex justify-center items-center h-20">
-                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-                </div>
-              ) : qcImages.length === 0 ? (
-                <div className="text-center py-4 bg-gray-50 rounded">
-                  <p className="text-sm text-gray-500">No QC images available</p>
-                </div>
-              ) : (
-                <div className="text-center py-4 bg-gray-50 rounded">
-                  <p className="text-sm text-gray-500">
-                    {qcImages.length} QC {qcImages.length === 1 ? 'image' : 'images'} available
-                  </p>
-                </div>
-              )}
-            </div>
-            
             {/* Removed timestamp information from here */}
           </div>
         </div>
@@ -635,6 +488,132 @@ const AssemblyDetailsPage: React.FC = () => {
               >
                 <span className="text-white">Upload Drawing</span>
               </Link>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Quality Control Section - Redesigned */}
+      <div className="mb-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+          <h3 className="text-sm font-medium text-gray-700 flex items-center">
+            <Camera size={18} className="mr-2 text-gray-500" />
+            Quality Control
+          </h3>
+          <Link
+            to={`/dashboard/assemblies/${assembly.id}/qc-images`}
+            className="text-xs px-2 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-md flex items-center"
+          >
+            <ImageIcon size={14} className="mr-1" />
+            Manage QC
+          </Link>
+        </div>
+        
+        <div className="p-4">
+          {/* QC Status Section */}
+          <div className="mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium text-gray-700">Status</p>
+              {!isEditingQcNote && (
+                <button
+                  onClick={() => setIsEditingQcNote(true)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  {assembly.quality_control_notes || assembly.quality_control_status ? 'Edit' : 'Add Details'}
+                </button>
+              )}
+            </div>
+            
+            {isEditingQcNote ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    QC Status
+                  </label>
+                  <select
+                    value={editQcStatus}
+                    onChange={(e) => setEditQcStatus(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                  >
+                    <option value="">Not specified</option>
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Passed">Passed</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Conditional Pass">Conditional Pass</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    QC Notes
+                  </label>
+                  <textarea
+                    value={editQcNote}
+                    onChange={(e) => setEditQcNote(e.target.value)}
+                    rows={4}
+                    className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="Enter quality control notes..."
+                  ></textarea>
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => {
+                      setIsEditingQcNote(false);
+                      setEditQcNote(assembly.quality_control_notes || '');
+                      setEditQcStatus(assembly.quality_control_status || '');
+                    }}
+                    className="px-3 py-1 border border-gray-300 text-xs text-gray-700 rounded-md hover:bg-gray-50"
+                    disabled={savingQcNote}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveQcNote}
+                    className="px-3 py-1 bg-blue-600 text-xs text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    disabled={savingQcNote}
+                  >
+                    {savingQcNote ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              assembly.quality_control_status ? (
+                <div className="flex items-center">
+                  <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                    assembly.quality_control_status === 'Passed'
+                      ? 'bg-green-100 text-green-800'
+                      : assembly.quality_control_status === 'Failed'
+                      ? 'bg-red-100 text-red-800'
+                      : assembly.quality_control_status === 'Not Started'
+                      ? 'bg-gray-100 text-gray-800'
+                      : assembly.quality_control_status === 'In Progress'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {assembly.quality_control_status}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic">
+                  Not set
+                </div>
+              )
+            )}
+          </div>
+          
+          {/* QC Notes Section */}
+          {!isEditingQcNote && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Notes</p>
+              {assembly.quality_control_notes ? (
+                <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded border border-gray-200 whitespace-pre-line">
+                  {assembly.quality_control_notes}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic">
+                  None
+                </div>
+              )}
             </div>
           )}
         </div>
