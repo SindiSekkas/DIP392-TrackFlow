@@ -158,5 +158,45 @@ export const mobileApiController = {
     } catch (error) {
       next(error);
     }
+  },
+
+  // Authenticate for QC operations
+  authenticateForQC: async (req, res, next) => {
+    try {
+      const { cardId } = req.body;
+      
+      // Reuse existing validation logic
+      const { data: nfcCard, error: nfcError } = await supabase
+        .from('nfc_cards')
+        .select('user_id, is_active')
+        .eq('card_id', cardId)
+        .single();
+      
+      if (nfcError || !nfcCard) {
+        return next(ErrorTypes.UNAUTHORIZED('Invalid NFC card'));
+      }
+      
+      if (!nfcCard.is_active) {
+        return next(ErrorTypes.FORBIDDEN('NFC card is inactive'));
+      }
+      
+      // Generate auth token
+      const { data: session, error: sessionError } = await supabase.auth.admin.createSession({
+        userId: nfcCard.user_id
+      });
+      
+      if (sessionError) {
+        return next(ErrorTypes.SERVER_ERROR('Failed to create session'));
+      }
+      
+      // Return both user info and token
+      res.json({
+        token: session.access_token,
+        userId: nfcCard.user_id,
+        cardId: cardId
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 };

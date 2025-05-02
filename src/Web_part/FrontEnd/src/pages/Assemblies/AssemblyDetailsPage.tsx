@@ -20,6 +20,7 @@ import { formatDate, formatWeight, formatFileSize } from '../../utils/formatters
 import { supabase } from '../../lib/supabase';
 import JsBarcode from 'jsbarcode';
 import BarcodePrintView from '../../components/Assemblies/BarcodePrintView';
+import QualityControlImages from '../../components/Assemblies/QualityControlImages';
 
 const AssemblyDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -389,6 +390,12 @@ const AssemblyDetailsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+                {/* Quality Control Images */}
+                  {assembly.id && (
+                    <div className="mb-4 pb-4 border-b border-gray-200">
+                      <QualityControlImages assemblyId={assembly.id} />
+                    </div>
+                  )}
               </div>
             )}
             

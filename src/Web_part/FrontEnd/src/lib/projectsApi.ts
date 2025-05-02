@@ -72,6 +72,25 @@ export interface ProjectDrawing {
   uploaded_at?: string;
 }
 
+// QC Image interface
+export interface QCImage {
+  id?: string;
+  assembly_id: string;
+  image_path: string;
+  file_name: string;
+  file_size: number;
+  content_type: string;
+  notes?: string;
+  qc_status?: string;
+  created_by?: string;
+  created_at?: string;
+  image_url?: string;
+  created_by_info?: {
+    name: string;
+    email: string;
+  };
+}
+
 // API for working with projects
 export const projectsApi = {
   // Get all projects
@@ -703,5 +722,88 @@ export const assembliesApi = {
       console.error('Error updating child assemblies:', error);
       throw error;
     }
+  },
+
+  // Get QC Images for an assembly
+  getQCImages: async (assemblyId: string): Promise<QCImage[]> => {
+    const { data, error } = await supabase
+      .from('assembly_qc_images')
+      .select(`
+        id,
+        assembly_id,
+        image_path,
+        file_name,
+        file_size,
+        content_type,
+        notes,
+        qc_status,
+        created_by,
+        created_at
+      `)
+      .eq('assembly_id', assemblyId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    // Generate URLs for the images
+    const imagesWithUrls = await Promise.all(data.map(async (image) => {
+      const { data: urlData } = supabase
+        .storage
+        .from('files')
+        .getPublicUrl(image.image_path);
+      
+      // Get user info when available
+      let createdByInfo = { name: 'Unknown User', email: '' };
+      
+      try {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('full_name')
+          .eq('auth_user_id', image.created_by)
+          .maybeSingle();
+        
+        if (profile) {
+          createdByInfo.name = profile.full_name;
+        }
+      } catch (err) {
+        console.error('Error fetching user info:', err);
+      }
+      
+      return {
+        ...image,
+        image_url: urlData.publicUrl,
+        created_by_info: createdByInfo
+      };
+    }));
+    
+    return imagesWithUrls as QCImage[];
+  },
+
+  // Delete QC Image
+  deleteQCImage: async (id: string): Promise<void> => {
+    // First get the image record to get the file path
+    const { data: image, error: getError } = await supabase
+      .from('assembly_qc_images')
+      .select('image_path')
+      .eq('id', id)
+      .single();
+    
+    if (getError) throw getError;
+    
+    // Delete from storage
+    const { error: storageError } = await supabase
+      .storage
+      .from('files')
+      .remove([image.image_path]);
+    
+    if (storageError) throw storageError;
+    
+    // Delete record
+    const { error: deleteError } = await supabase
+      .from('assembly_qc_images')
+      .delete()
+      .eq('id', id);
+    
+    if (deleteError) throw deleteError;
   }
 };
