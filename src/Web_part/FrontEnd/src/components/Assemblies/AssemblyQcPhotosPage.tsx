@@ -10,8 +10,7 @@ import {
   Image as ImageIcon,
   X,
   Eye,
-  Edit,
-  AlertCircle
+  Edit
 } from 'lucide-react';
 import { QCImage, Assembly, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatFileSize } from '../../utils/formatters';
@@ -134,7 +133,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
-              Quality Control Images
+              Assembly Evaluation
             </h2>
             <p className="text-gray-500">
               {assembly ? `Assembly: ${assembly.name}` : 'Loading...'}
@@ -146,7 +145,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
       {/* Overall QC Status and Notes */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
         <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-medium text-gray-800">Overall Quality Control</h3>
+          <h3 className="text-lg font-medium text-gray-800">Overall Evaluation</h3>
           {hasEditPermission() && !isEditingOverallNote && (
             <button
               onClick={() => setIsEditingOverallNote(true)}
@@ -180,7 +179,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Overall QC Notes
+                Overall Evaluation Notes
               </label>
               <textarea
                 value={overallNote}
@@ -234,7 +233,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
               </div>
             ) : (
               <div className="text-gray-500 italic">
-                No overall quality control notes available.
+                No quality control notes available.
               </div>
             )}
           </div>
@@ -256,6 +255,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
             <button
               onClick={() => navigate(`/dashboard/assemblies/${id}`)}
               className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              style={{ color: 'white' }}
             >
               Return to Assembly
             </button>
@@ -263,10 +263,11 @@ const AssemblyQcPhotosPage: React.FC = () => {
         ) : images.length === 0 ? (
           <div className="text-center py-10 bg-gray-50 rounded-lg border border-gray-200">
             <ImageIcon size={48} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 mb-4">No quality control images found for this assembly.</p>
+            <p className="text-gray-500 mb-4">No images found for this assembly.</p>
             <Link
               to={`/dashboard/assemblies/${id}`}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+              style={{ color: 'white' }}
             >
               Return to Assembly
             </Link>
@@ -281,11 +282,10 @@ const AssemblyQcPhotosPage: React.FC = () => {
                 <div 
                   className="h-48 bg-gray-100 cursor-pointer relative group"
                   onClick={() => setSelectedImage(image)}
-                >
-                  <img 
+                >                  <img 
                     src={image.image_url}
                     alt={`QC image ${image.file_name}`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-all duration-300 group-hover:blur-[3px]"
                   />
                   {image.qc_status && (
                     <div className="absolute top-2 right-2">
@@ -299,9 +299,8 @@ const AssemblyQcPhotosPage: React.FC = () => {
                         {image.qc_status}
                       </span>
                     </div>
-                  )}
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <div className="bg-white p-2 rounded-full">
+                  )}                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="bg-white p-2 rounded-full shadow-md">
                       <Eye size={20} className="text-blue-600" />
                     </div>
                   </div>
@@ -324,14 +323,13 @@ const AssemblyQcPhotosPage: React.FC = () => {
                     <div className="text-xs text-gray-500 flex items-center">
                       <Calendar size={12} className="mr-1" />
                       {formatDate(image.created_at as string)}
-                    </div>
-                    {hasEditPermission() && (
+                    </div>                    {hasEditPermission() && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleDeleteImage(image.id as string);
                         }}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        className="p-1 text-red-600 rounded"
                         title="Delete image"
                       >
                         <Trash2 size={16} />
@@ -343,11 +341,9 @@ const AssemblyQcPhotosPage: React.FC = () => {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Image Modal */}
+      </div>      {/* Image Modal */}
       {selectedImage && (
-        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+        <div className="fixed inset-0 backdrop-blur-md bg-gray-800/40 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
           <div className="relative w-full max-w-4xl bg-white rounded-lg overflow-hidden max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-medium truncate">
@@ -396,12 +392,6 @@ const AssemblyQcPhotosPage: React.FC = () => {
                     </div>
                   )}
                   
-                  {/* Adding alert to clarify the difference between issue notes and overall notes */}
-                  <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800 flex">
-                    <AlertCircle size={16} className="flex-shrink-0 mr-2 mt-0.5" />
-                    <p>This note describes the specific issue in this image and is separate from the overall QC notes for the assembly.</p>
-                  </div>
-                  
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-700">File Details</p>
                     <p className="mt-1 text-sm text-gray-600">
@@ -425,22 +415,21 @@ const AssemblyQcPhotosPage: React.FC = () => {
                     </p>
                   </div>
                   
-                  <div className="flex space-x-2">
-                    <a
+                  <div className="flex space-x-2">                    <a
                       href={selectedImage.image_url}
                       download={selectedImage.file_name}
-                      className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                      className="flex items-center px-3 py-1 bg-blue-600 text-white rounded"
                     >
-                      <Download size={16} className="mr-1" />
-                      Download
+                      <Download size={16} className="mr-1 text-white" />
+                      <span className="text-white">Download</span>
                     </a>
                     {hasEditPermission() && (
                       <button
                         onClick={() => handleDeleteImage(selectedImage.id as string)}
-                        className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                        className="flex items-center px-3 py-1 bg-red-600 text-white rounded"
                       >
-                        <Trash2 size={16} className="mr-1" />
-                        Delete
+                        <Trash2 size={16} className="mr-1 text-white" />
+                        <span className="text-white">Delete</span>
                       </button>
                     )}
                   </div>

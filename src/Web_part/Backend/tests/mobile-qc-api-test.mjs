@@ -76,8 +76,8 @@ const uploadQCImage = async () => {
     // Create form data with userId and cardId fields exactly as batch/assemblies expect
     const form = new FormData();
     form.append('image', fs.createReadStream(TEST_IMAGE_PATH));
-    form.append('qcStatus', 'Failed'); // Using Failed for the specific image
-    form.append('notes', 'Specific defect: Плохая покраска крепежных элементов'); // Issue-specific note
+    //form.append('qcStatus', 'Failed'); // Using Failed for the specific image
+    form.append('notes', 'Specific defect: Poor painting of fasteners'); // Issue-specific note (Translated)
     form.append('userId', userId);
     form.append('cardId', TEST_NFC_CARD);
     form.append('deviceInfo', JSON.stringify({
@@ -117,7 +117,7 @@ const updateAssemblyQCNotes = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         qcStatus: 'Conditional Pass', // Different status than the image
-        notes: 'Overall assessmentsss: Имеется несколько дефектов покраски, требуется дополнительная проверка перед отправкой',
+        notes: 'Overall assessment: There are several paint defects, additional inspection is required before shipping', // (Translated)
         userId: userId,
         cardId: TEST_NFC_CARD,
         deviceInfo: {
