@@ -20,8 +20,9 @@ The mobile application will work as follows:
 
 ## API Base URL
 
-- **Development**: `http://localhost:3001/api`
-- **Production**: `https://api.trackflow.pl/api`
+- **Development**: `http://localhost:3001`
+- **Production**: `https://api.trackflow.pl`
+
 
 ## Authentication
 

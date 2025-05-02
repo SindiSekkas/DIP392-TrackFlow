@@ -6,23 +6,42 @@ import { assemblyBarcodeController } from './controllers/assemblyBarcodeControll
 import { assemblyStatusController } from './controllers/assemblyStatusController.js';
 import { mobileApiController } from './controllers/mobileApiController.js';
 import { mobileLogisticsController } from './controllers/mobileLogisticsController.js'; // Import new controller
+import { qualityControlController } from './controllers/qualityControlController.js'; // Import QC controller
 import { authenticate, authorize } from './middleware/auth.js';
-import { 
-  validate, 
+import {
+  validate,
   userValidationRules,
   nfcCardValidationRules,
   assemblyBarcodeValidationRules,
   assemblyStatusValidationRules,
   logisticsBarcodeValidationRules // New validation rules
 } from './middleware/validation.js';
+import { param, body } from 'express-validator'; // Import param and body for new rules
+import { upload } from './middleware/fileUpload.js'; 
 
 // Import mobile authentication middleware
-import { 
-  mobileAuthenticate, 
-  verifyNfcCard, 
+import {
+  mobileAuthenticate,
+  verifyNfcCard,
   mobileAuthorize,
   logMobileOperation // Import the logging middleware
 } from './middleware/mobileAuth.js';
+
+// QC Image validation rules
+const qcImageValidationRules = {
+  uploadQCImage: [
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID'),
+    body('qcStatus').optional().isString().withMessage('Invalid QC status'),
+    body('notes').optional().isString().withMessage('Invalid notes')
+  ],
+  getQCImages: [
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID')
+  ],
+  deleteQCImage: [
+    param('id').isUUID().withMessage('Invalid QC image ID')
+  ]
+};
+
 
 const router = express.Router();
 
@@ -166,6 +185,42 @@ mobileRouter.delete(
   mobileLogisticsController.removeAssemblyFromBatch
 );
 
+// Mobile QC image upload endpoint
+mobileRouter.post(
+  '/assemblies/:assemblyId/qc-upload',
+  upload.single('image'), // <-- Moved to BEFORE authentication
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(qcImageValidationRules.uploadQCImage),
+  logMobileOperation('upload_qc_image'),
+  qualityControlController.uploadQCImage
+);
+
+// Mobile QC image retrieval endpoint (Changed to POST to accept body for auth)
+mobileRouter.post( // <-- Changed from GET to POST
+  '/assemblies/:assemblyId/qc-images',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(qcImageValidationRules.getQCImages),
+  logMobileOperation('get_qc_images'),
+  qualityControlController.getQCImages
+);
+
+// Update general QC notes for an assembly (mobile API)
+mobileRouter.post(
+  '/assemblies/:assemblyId/qc-notes',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate([
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID'),
+    body('qcStatus').optional().isString().withMessage('Invalid QC status'),
+    body('notes').optional().isString().withMessage('Invalid notes')
+  ]),
+  logMobileOperation('update_qc_notes'),
+  qualityControlController.updateAssemblyQCNotes
+);
+
+
 // Web API routes for barcode/status management
 // Get assembly by barcode (web app - no auth required for scanning via web)
 router.get(
@@ -206,6 +261,41 @@ router.get(
   authorize(['admin', 'manager']),
   validate(assemblyStatusValidationRules.getStatusHistory),
   assemblyStatusController.getStatusHistory
+);
+
+// Get QC images for an assembly (Web)
+router.get(
+  '/assemblies/:assemblyId/qc-images',
+  authenticate, // Requires standard web authentication
+  validate(qcImageValidationRules.getQCImages),
+  qualityControlController.getQCImages
+);
+
+// Delete QC image (Web - Admin/Manager only)
+router.delete(
+  '/assemblies/qc-images/:id',
+  authenticate,
+  authorize(['admin', 'manager']),
+  validate(qcImageValidationRules.deleteQCImage),
+  qualityControlController.deleteQCImage
+);
+
+// Update general QC notes for an assembly (Web API)
+router.post(
+  '/assemblies/:assemblyId/qc-notes',
+  authenticate,
+  validate([
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID'),
+    body('qcStatus').optional().isString().withMessage('Invalid QC status'),
+    body('notes').optional().isString().withMessage('Invalid notes')
+  ]),
+  qualityControlController.updateAssemblyQCNotes
+);
+
+router.post(
+  '/mobile/qc/auth',
+  validate(nfcCardValidationRules.validateCard),
+  mobileApiController.authenticateForQC  // New controller method
 );
 
 export default router;
