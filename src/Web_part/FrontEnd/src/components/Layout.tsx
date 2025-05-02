@@ -320,7 +320,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           {/* Left side: logo and title */}
           <div className="flex items-center space-x-3">
             {/* Logo */}
-            <div className="h-10 w-10 flex items-center justify-center flex-shrink-0">
+            <div 
+              className="h-10 w-10 flex items-center justify-center flex-shrink-0 cursor-pointer"
+              onClick={() => navigate('/dashboard')}
+            >
               <img
                 src={LogoImage}
                 alt="TrackFlow Logo"
@@ -331,7 +334,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               />
             </div>
             {/* TrackFlow title with gradient */}
-            <div className="relative" style={{ userSelect: 'none' }}>
+            <div 
+              className="relative cursor-pointer" 
+              style={{ userSelect: 'none' }}
+              onClick={() => navigate('/dashboard')}
+            >
               <h1 className="font-bold" style={{ 
                 fontSize: '1.6rem', 
                 fontFamily: 'system-ui, sans-serif',
