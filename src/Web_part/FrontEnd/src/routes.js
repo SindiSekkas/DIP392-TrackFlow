@@ -2,11 +2,27 @@
 import express from 'express';
 import { userController } from './controllers/userController.js';
 import { mobileApiController } from './controllers/mobileApiController.js';
+import { qualityControlController } from './controllers/qualityControlController.js';
+import { mobileLogisticsController } from './controllers/mobileLogisticsController.js';
+import { nfcCardController } from './controllers/nfcCardController.js';
 import { authenticate, authorize } from './middleware/auth.js';
 import { validate, userValidationRules } from './middleware/validation.js';
 import { body, param } from 'express-validator';
+import { upload } from './middleware/fileUpload.js';
+import {
+  mobileAuthenticate,
+  verifyNfcCard,
+  mobileAuthorize,
+  logMobileOperation
+} from './middleware/mobileAuth.js';
+import {
+  logisticsBarcodeValidationRules,
+  qcImageValidationRules,
+  nfcCardValidationRules as mobileNfcValidationRules // Alias to avoid conflict
+} from './middleware/validation.js';
 
 const router = express.Router();
+const mobileRouter = express.Router();
 
 /**
  * Public Health Check endpoint
@@ -107,33 +123,36 @@ router.post(
 
 /**
  * ========================================
- * MOBILE API ROUTES
- * Endpoints for the mobile app to 
- * scan barcodes and update assembly status
+ * NFC CARD MANAGEMENT ROUTES
+ * Endpoints for managing NFC cards
+ * Admin/Manager access only
  * ========================================
  */
 
-// Mobile API validation rules
-const mobileApiValidationRules = {
-  nfcAuth: [
-    body('cardId').isString().notEmpty().withMessage('NFC card ID is required')
-  ],
-  updateStatus: [
-    param('id').isUUID().withMessage('Invalid assembly ID'),
-    body('status').isIn(['Waiting', 'In Production', 'Welding', 'Painting', 'Completed'])
-      .withMessage('Invalid status')
-  ]
-};
+// Add this section for NFC card validation - required for mobile app
+router.post(
+  '/nfc/validate',
+  validate(mobileNfcValidationRules.validateCard), // Use aliased validation rules
+  nfcCardController.validateCard
+);
+
+/**
+ * ========================================
+ * MOBILE API ROUTES
+ * Endpoints for the mobile app to
+ * scan barcodes and update assembly status
+ * ========================================
+ */
 
 /**
  * POST /api/mobile/auth/nfc
  * Authenticates a user with their NFC card ID
  * No prior authentication required
  * Body: cardId
- * Returns: JWT token, user info, expiration time 
+ * Returns: JWT token, user info, expiration time
  */
-router.post(
-  '/mobile/auth/nfc',
+mobileRouter.post(
+  '/auth/nfc',
   validate(mobileApiValidationRules.nfcAuth),
   mobileApiController.authenticateWithNFC
 );
@@ -144,9 +163,9 @@ router.post(
  * Requires: Authentication (any role)
  * Returns: Assembly details including project info
  */
-router.get(
-  '/mobile/assemblies/barcode/:barcode',
-  authenticate,
+mobileRouter.get(
+  '/assemblies/barcode/:barcode',
+  mobileAuthenticate, // Use mobile specific auth if needed, or keep general authenticate
   mobileApiController.getAssemblyByBarcode
 );
 
@@ -158,32 +177,73 @@ router.get(
  * Returns: Updated assembly data
  * Also logs the status change with user info
  */
-router.patch(
-  '/mobile/assemblies/:id/status',
-  authenticate,
+mobileRouter.patch(
+  '/assemblies/:id/status',
+  mobileAuthenticate, // Use mobile specific auth
+  verifyNfcCard,      // Add NFC card verification
   validate(mobileApiValidationRules.updateStatus),
+  logMobileOperation('update_assembly_status'), // Add logging
   mobileApiController.updateAssemblyStatus
 );
 
+// Add the QC image upload endpoint WITH CORRECT MIDDLEWARE ORDER
+// Note: upload.single('image') MUST come before authentication middleware
+mobileRouter.post(
+  '/assemblies/:assemblyId/qc',
+  upload.single('image'), // File upload middleware first!
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(qcImageValidationRules.uploadQCImage),
+  logMobileOperation('upload_qc_image'),
+  qualityControlController.uploadQCImage
+);
+
+// Mobile Logistics API Routes
+mobileRouter.post(
+  '/logistics/batches/validate',
+  mobileAuthenticate,
+  validate(logisticsBarcodeValidationRules.validateBatchBarcode),
+  logMobileOperation('batch_barcode_validation'),
+  mobileLogisticsController.validateBatchBarcode
+);
+
+mobileRouter.post(
+  '/logistics/batches/add-assembly',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(logisticsBarcodeValidationRules.addAssemblyToBatch),
+  logMobileOperation('add_assembly_to_batch'),
+  mobileLogisticsController.addAssemblyToBatch
+);
+
+// Note: Changed to GET as it retrieves data, adjusted route param
+mobileRouter.get(
+  '/logistics/batches/:batchId/assemblies',
+  mobileAuthenticate,
+  validate(logisticsBarcodeValidationRules.getBatchAssemblies),
+  logMobileOperation('get_batch_assemblies'),
+  mobileLogisticsController.getBatchAssemblies
+);
+
+mobileRouter.delete(
+  '/logistics/batch-assemblies/:batchAssemblyId',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate(logisticsBarcodeValidationRules.removeAssemblyFromBatch),
+  logMobileOperation('remove_assembly_from_batch'),
+  mobileLogisticsController.removeAssemblyFromBatch
+);
+
+// Mount the mobile router under the /mobile path
+router.use('/mobile', mobileRouter);
+
 /**
  * ========================================
- * NFC CARD MANAGEMENT ROUTES
+ * NFC CARD MANAGEMENT ROUTES (Web/Admin)
  * Endpoints for managing NFC cards
  * Admin/Manager access only
  * ========================================
  */
-
-// NFC card validation rules
-const nfcCardValidationRules = {
-  create: [
-    body('cardId').isString().notEmpty().withMessage('NFC card ID is required'),
-    body('userId').isUUID().withMessage('Valid user ID is required')
-  ],
-  update: [
-    param('id').isUUID().withMessage('Invalid NFC card ID'),
-    body('isActive').isBoolean().optional()
-  ]
-};
 
 /**
  * POST /api/nfc-cards
@@ -196,7 +256,7 @@ router.post(
   authenticate,
   authorize(['admin', 'manager']),
   validate(nfcCardValidationRules.create),
-  mobileApiController.registerNfcCard
+  nfcCardController.registerNfcCard // Use nfcCardController
 );
 
 /**
@@ -208,7 +268,7 @@ router.get(
   '/nfc-cards',
   authenticate,
   authorize(['admin', 'manager']),
-  mobileApiController.getNfcCards
+  nfcCardController.getNfcCards // Use nfcCardController
 );
 
 /**
@@ -222,7 +282,7 @@ router.put(
   authenticate,
   authorize(['admin', 'manager']),
   validate(nfcCardValidationRules.update),
-  mobileApiController.updateNfcCard
+  nfcCardController.updateNfcCard // Use nfcCardController
 );
 
 /**
@@ -234,23 +294,18 @@ router.delete(
   '/nfc-cards/:id',
   authenticate,
   authorize(['admin', 'manager']),
-  mobileApiController.deleteNfcCard
+  // Add validation for delete if needed, e.g., param('id').isUUID()
+  nfcCardController.deleteNfcCard // Use nfcCardController
 );
+
 
 /**
  * ========================================
- * BARCODE MANAGEMENT ROUTES
+ * BARCODE MANAGEMENT ROUTES (Web/Admin)
  * Endpoints for generating & managing barcodes
  * Admin/Manager access only
  * ========================================
  */
-
-// Barcode validation rules
-const barcodeValidationRules = {
-  generate: [
-    body('assemblyId').isUUID().withMessage('Valid assembly ID is required')
-  ]
-};
 
 /**
  * POST /api/barcodes/generate
@@ -281,7 +336,31 @@ router.get(
 
 /**
  * ========================================
- * ACTIVITY LOGGING ROUTES
+ * QUALITY CONTROL ROUTES (Web/Admin)
+ * Endpoints for viewing/managing QC data
+ * ========================================
+ */
+
+// Get QC images for an assembly (Web/Admin access)
+router.get(
+  '/assemblies/:assemblyId/qc-images',
+  authenticate, // General auth for web access
+  validate(qcImageValidationRules.getQCImages),
+  qualityControlController.getQCImages
+);
+
+// Delete QC image (Web/Admin access)
+router.delete(
+  '/assemblies/qc-images/:id',
+  authenticate,
+  validate(qcImageValidationRules.deleteQCImage),
+  qualityControlController.deleteQCImage
+);
+
+
+/**
+ * ========================================
+ * ACTIVITY LOGGING ROUTES (Web/Admin)
  * For audit trail and monitoring
  * ========================================
  */
