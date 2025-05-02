@@ -9,9 +9,11 @@ import {
   Download, 
   Image as ImageIcon,
   X,
-  Eye
+  Eye,
+  Edit,
+  AlertCircle
 } from 'lucide-react';
-import { QCImage, assembliesApi } from '../../lib/projectsApi';
+import { QCImage, Assembly, assembliesApi } from '../../lib/projectsApi';
 import { formatDate, formatFileSize } from '../../utils/formatters';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -23,10 +25,16 @@ const AssemblyQcPhotosPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<QCImage | null>(null);
-  const [assemblyName, setAssemblyName] = useState<string>('');
+  const [assembly, setAssembly] = useState<Assembly | null>(null);
+  
+  // State for editing overall note
+  const [isEditingOverallNote, setIsEditingOverallNote] = useState(false);
+  const [overallNote, setOverallNote] = useState('');
+  const [overallQcStatus, setOverallQcStatus] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
 
   useEffect(() => {
-    const fetchImages = async () => {
+    const fetchData = async () => {
       if (!id) {
         navigate('/dashboard/assemblies');
         return;
@@ -35,23 +43,25 @@ const AssemblyQcPhotosPage: React.FC = () => {
       try {
         setLoading(true);
         
-        // Fetch assembly details to get the name
-        const assembly = await assembliesApi.getAssembly(id);
-        setAssemblyName(assembly.name);
+        // Fetch assembly details to get the name and existing QC notes
+        const assemblyData = await assembliesApi.getAssembly(id);
+        setAssembly(assemblyData);
+        setOverallNote(assemblyData.quality_control_notes || '');
+        setOverallQcStatus(assemblyData.quality_control_status || '');
         
         // Fetch QC images
         const imagesData = await assembliesApi.getQCImages(id);
         setImages(imagesData);
         setError(null);
       } catch (err) {
-        console.error('Error fetching QC images:', err);
-        setError('Failed to load QC images. Please try again.');
+        console.error('Error fetching QC data:', err);
+        setError('Failed to load QC data. Please try again.');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchImages();
+    fetchData();
   }, [id, navigate]);
 
   const handleDeleteImage = async (imageId: string) => {
@@ -73,8 +83,39 @@ const AssemblyQcPhotosPage: React.FC = () => {
     }
   };
 
-  // Check if user has admin or manager role for permission to delete
-  const hasDeletePermission = () => {
+  const handleSaveOverallNote = async () => {
+    if (!assembly || !assembly.id) return;
+    
+    try {
+      setSavingNote(true);
+      
+      // Only update QC notes and status, leave all other fields as they were
+      const updatedData = {
+        ...assembly,
+        quality_control_notes: overallNote,
+        quality_control_status: overallQcStatus
+      };
+      
+      await assembliesApi.updateAssembly(assembly.id, updatedData);
+      setIsEditingOverallNote(false);
+      
+      // Update local assembly state
+      setAssembly({
+        ...assembly,
+        quality_control_notes: overallNote,
+        quality_control_status: overallQcStatus
+      });
+      
+    } catch (err) {
+      console.error('Error saving overall QC note:', err);
+      alert('Failed to save overall QC note. Please try again.');
+    } finally {
+      setSavingNote(false);
+    }
+  };
+
+  // Check if user has admin or manager role for permission to delete/edit
+  const hasEditPermission = () => {
     const userRole = user?.app_metadata?.role || user?.user_metadata?.role;
     return userRole === 'admin' || userRole === 'manager';
   };
@@ -96,106 +137,218 @@ const AssemblyQcPhotosPage: React.FC = () => {
               Quality Control Images
             </h2>
             <p className="text-gray-500">
-              {assemblyName ? `Assembly: ${assemblyName}` : 'Loading...'}
+              {assembly ? `Assembly: ${assembly.name}` : 'Loading...'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
-          <p className="ml-2 text-gray-600">Loading images...</p>
-        </div>
-      ) : error ? (
-        <div className="text-center py-10 bg-red-50 rounded-md">
-          <p className="text-red-700">{error}</p>
-          <button
-            onClick={() => navigate(`/dashboard/assemblies/${id}`)}
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            Return to Assembly
-          </button>
-        </div>
-      ) : images.length === 0 ? (
-        <div className="text-center py-10">
-          <ImageIcon size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 mb-4">No quality control images found for this assembly.</p>
-          <Link
-            to={`/dashboard/assemblies/${id}`}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-          >
-            Return to Assembly
-          </Link>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {images.map((image) => (
-            <div 
-              key={image.id} 
-              className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      {/* Overall QC Status and Notes */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-lg font-medium text-gray-800">Overall Quality Control</h3>
+          {hasEditPermission() && !isEditingOverallNote && (
+            <button
+              onClick={() => setIsEditingOverallNote(true)}
+              className="text-blue-600 hover:text-blue-800 flex items-center"
             >
-              <div 
-                className="h-48 bg-gray-100 cursor-pointer relative group"
-                onClick={() => setSelectedImage(image)}
-              >
-                <img 
-                  src={image.image_url}
-                  alt={`QC image ${image.file_name}`}
-                  className="w-full h-full object-cover transition-all duration-300 group-hover:blur-[3px]"
-                />
-                {image.qc_status && (
-                  <div className="absolute top-2 right-2">
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium shadow-sm ${
-                      image.qc_status === 'Passed'
-                        ? 'bg-green-100 text-green-800'
-                        : image.qc_status === 'Failed'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {image.qc_status}
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="bg-white p-2 rounded-full shadow-md">
-                    <Eye size={20} className="text-blue-600" />
-                  </div>
-                </div>
-              </div>
-              <div className="p-3">
-                <p className="text-sm font-medium text-gray-700 truncate" title={image.file_name}>
-                  {image.file_name}
-                </p>
-                <div className="flex justify-between items-center mt-2">
-                  <div className="text-xs text-gray-500 flex items-center">
-                    <Calendar size={12} className="mr-1" />
-                    {formatDate(image.created_at as string)}
-                  </div>
-                  {hasDeletePermission() && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteImage(image.id as string);
-                      }}
-                      className="p-1 text-red-600 hover:bg-red-50 rounded"
-                      title="Delete image"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
+              <Edit size={16} className="mr-1" />
+              Edit
+            </button>
+          )}
         </div>
-      )}
+        
+        {isEditingOverallNote ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Overall QC Status
+              </label>
+              <select
+                value={overallQcStatus}
+                onChange={(e) => setOverallQcStatus(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md"
+              >
+                <option value="">Not specified</option>
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Passed">Passed</option>
+                <option value="Failed">Failed</option>
+                <option value="Conditional Pass">Conditional Pass</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Overall QC Notes
+              </label>
+              <textarea
+                value={overallNote}
+                onChange={(e) => setOverallNote(e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-md h-32"
+                placeholder="Enter overall quality control notes..."
+              ></textarea>
+            </div>
+            
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => {
+                  setIsEditingOverallNote(false);
+                  setOverallNote(assembly?.quality_control_notes || '');
+                  setOverallQcStatus(assembly?.quality_control_status || '');
+                }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                disabled={savingNote}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveOverallNote}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                disabled={savingNote}
+              >
+                {savingNote ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {assembly?.quality_control_status && (
+              <div className="mb-2">
+                <span className="text-sm font-medium text-gray-700">Status: </span>
+                <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                  assembly.quality_control_status === 'Passed'
+                    ? 'bg-green-100 text-green-800'
+                    : assembly.quality_control_status === 'Failed'
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {assembly.quality_control_status}
+                </span>
+              </div>
+            )}
+            
+            {assembly?.quality_control_notes ? (
+              <div className="bg-white p-3 rounded border border-gray-200 whitespace-pre-line">
+                {assembly.quality_control_notes}
+              </div>
+            ) : (
+              <div className="text-gray-500 italic">
+                No overall quality control notes available.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Image Gallery */}
+      <div className="mb-4">
+        <h3 className="text-lg font-medium text-gray-800 mb-4">QC Images and Issues</h3>
+        
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+            <p className="ml-2 text-gray-600">Loading images...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-10 bg-red-50 rounded-md">
+            <p className="text-red-700">{error}</p>
+            <button
+              onClick={() => navigate(`/dashboard/assemblies/${id}`)}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Return to Assembly
+            </button>
+          </div>
+        ) : images.length === 0 ? (
+          <div className="text-center py-10 bg-gray-50 rounded-lg border border-gray-200">
+            <ImageIcon size={48} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500 mb-4">No quality control images found for this assembly.</p>
+            <Link
+              to={`/dashboard/assemblies/${id}`}
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Return to Assembly
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {images.map((image) => (
+              <div 
+                key={image.id} 
+                className="border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div 
+                  className="h-48 bg-gray-100 cursor-pointer relative group"
+                  onClick={() => setSelectedImage(image)}
+                >
+                  <img 
+                    src={image.image_url}
+                    alt={`QC image ${image.file_name}`}
+                    className="w-full h-full object-cover"
+                  />
+                  {image.qc_status && (
+                    <div className="absolute top-2 right-2">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium shadow-sm ${
+                        image.qc_status === 'Passed'
+                          ? 'bg-green-100 text-green-800'
+                          : image.qc_status === 'Failed'
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {image.qc_status}
+                      </span>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="bg-white p-2 rounded-full">
+                      <Eye size={20} className="text-blue-600" />
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <p className="text-sm font-medium text-gray-700 truncate" title={image.file_name}>
+                    {image.file_name}
+                  </p>
+                  
+                  {/* Truncated notes preview */}
+                  {image.notes && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      <div className="line-clamp-2" title={image.notes}>
+                        {image.notes}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-between items-center mt-2">
+                    <div className="text-xs text-gray-500 flex items-center">
+                      <Calendar size={12} className="mr-1" />
+                      {formatDate(image.created_at as string)}
+                    </div>
+                    {hasEditPermission() && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteImage(image.id as string);
+                        }}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded"
+                        title="Delete image"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Image Modal */}
       {selectedImage && (
-        <div className="fixed inset-0 backdrop-blur-md bg-gray-800/40 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
-          <div className="relative w-full max-w-4xl bg-white rounded-lg overflow-hidden shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+          <div className="relative w-full max-w-4xl bg-white rounded-lg overflow-hidden max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center p-4 border-b">
               <h3 className="text-lg font-medium truncate">
                 {selectedImage.file_name}
@@ -207,7 +360,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 flex flex-col md:flex-row">
+            <div className="p-4 flex flex-col md:flex-row overflow-auto">
               <div className="md:w-2/3">
                 <img 
                   src={selectedImage.image_url}
@@ -219,7 +372,7 @@ const AssemblyQcPhotosPage: React.FC = () => {
                 <div className="bg-gray-50 p-4 rounded">
                   {selectedImage.qc_status && (
                     <div className="mb-4">
-                      <p className="text-sm font-medium text-gray-700">QC Status</p>
+                      <p className="text-sm font-medium text-gray-700">Issue Status</p>
                       <p className="mt-1">
                         <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                           selectedImage.qc_status === 'Passed'
@@ -236,12 +389,18 @@ const AssemblyQcPhotosPage: React.FC = () => {
                   
                   {selectedImage.notes && (
                     <div className="mb-4">
-                      <p className="text-sm font-medium text-gray-700">Notes</p>
+                      <p className="text-sm font-medium text-gray-700">Issue Description</p>
                       <p className="mt-1 text-sm text-gray-600 whitespace-pre-line bg-white p-2 rounded border border-gray-200">
                         {selectedImage.notes}
                       </p>
                     </div>
                   )}
+                  
+                  {/* Adding alert to clarify the difference between issue notes and overall notes */}
+                  <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800 flex">
+                    <AlertCircle size={16} className="flex-shrink-0 mr-2 mt-0.5" />
+                    <p>This note describes the specific issue in this image and is separate from the overall QC notes for the assembly.</p>
+                  </div>
                   
                   <div className="mb-4">
                     <p className="text-sm font-medium text-gray-700">File Details</p>
@@ -270,18 +429,18 @@ const AssemblyQcPhotosPage: React.FC = () => {
                     <a
                       href={selectedImage.image_url}
                       download={selectedImage.file_name}
-                      className="flex items-center px-3 py-1 bg-blue-600 text-white rounded transition-none"
+                      className="flex items-center px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                     >
-                      <Download size={16} className="mr-1 text-white" />
-                      <span className="text-white">Download</span>
+                      <Download size={16} className="mr-1" />
+                      Download
                     </a>
-                    {hasDeletePermission() && (
+                    {hasEditPermission() && (
                       <button
                         onClick={() => handleDeleteImage(selectedImage.id as string)}
-                        className="flex items-center px-3 py-1 bg-red-600 text-white rounded transition-none"
+                        className="flex items-center px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                       >
-                        <Trash2 size={16} className="mr-1 text-white" />
-                        <span className="text-white">Delete</span>
+                        <Trash2 size={16} className="mr-1" />
+                        Delete
                       </button>
                     )}
                   </div>

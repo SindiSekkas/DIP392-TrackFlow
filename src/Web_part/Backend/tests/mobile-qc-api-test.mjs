@@ -1,4 +1,4 @@
-// mobile-qc-api-test.mjs - Simplified to match working endpoints
+// mobile-qc-api-test.mjs - Updated for new API structure with separate QC notes
 
 import fetch from 'node-fetch';
 import FormData from 'form-data';
@@ -67,17 +67,17 @@ const authenticateWithNFC = async () => {
   }
 };
 
-// Step 2: Upload QC image
+// Step 2: Upload QC image with its own notes (doesn't affect assembly QC notes)
 const uploadQCImage = async () => {
   try {
-    logStep('Uploading QC image with status');
+    logStep('Uploading QC image with issue-specific status and notes');
     checkTestImage();
     
     // Create form data with userId and cardId fields exactly as batch/assemblies expect
     const form = new FormData();
     form.append('image', fs.createReadStream(TEST_IMAGE_PATH));
-    form.append('qcStatus', 'Passed');
-    form.append('notes', 'Test QCsss image uploaded via API test script');
+    form.append('qcStatus', 'Failed'); // Using Failed for the specific image
+    form.append('notes', 'Specific defect: Плохая покраска крепежных элементов'); // Issue-specific note
     form.append('userId', userId);
     form.append('cardId', TEST_NFC_CARD);
     form.append('deviceInfo', JSON.stringify({
@@ -97,7 +97,8 @@ const uploadQCImage = async () => {
     const data = await response.json();
     uploadedQcImageId = data.data.qc_image?.id;
     
-    logSuccess('QC image uploaded successfully');
+    logSuccess('QC image uploaded successfully with issue-specific notes');
+    console.log('  Image notes:', data.data.qc_image?.notes);
     return data.data;
   } catch (error) {
     logError('Failed to upload QC image', error);
@@ -105,34 +106,67 @@ const uploadQCImage = async () => {
   }
 };
 
-// Step 3: Retrieve QC image (using mobile endpoint with POST to send body)
-const retrieveQCImage = async () => {
-  if (!uploadedQcImageId) {
-    logError('Cannot retrieve QC image: No image ID available from upload step.');
+// Step 3: Update the overall QC notes for the assembly (separate from image notes)
+const updateAssemblyQCNotes = async () => {
+  try {
+    logStep('Updating overall QC notes for the assembly');
+    
+    // The new endpoint for updating assembly QC notes
+    const response = await fetch(`${API_URL}/mobile/assemblies/${testAssemblyId}/qc-notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        qcStatus: 'Conditional Pass', // Different status than the image
+        notes: 'Overall assessmentsss: Имеется несколько дефектов покраски, требуется дополнительная проверка перед отправкой',
+        userId: userId,
+        cardId: TEST_NFC_CARD,
+        deviceInfo: {
+          deviceType: 'Test',
+          appVersion: '1.0.0'
+        }
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+    }
+    
+    const data = await response.json();
+    
+    logSuccess('Assembly QC notes updated successfully');
+    console.log('  Overall QC notes:', data.data.quality_control_notes);
+    console.log('  Overall QC status:', data.data.quality_control_status);
+    
+    return data.data;
+  } catch (error) {
+    logError('Failed to update assembly QC notes', error);
     return null;
   }
+};
+
+// Step 4: Retrieve QC images to verify the uploaded image
+const retrieveQCImages = async () => {
   if (!testAssemblyId) {
-    logError('Cannot retrieve QC image: No testAssemblyId available.');
+    logError('Cannot retrieve QC images: No testAssemblyId available.');
     return null;
   }
   if (!userId) {
-    logError('Cannot retrieve QC image: No userId available from authentication step.');
+    logError('Cannot retrieve QC images: No userId available from authentication step.');
     return null;
   }
 
   try {
-    logStep(`Retrieving QC images for assembly ID: ${testAssemblyId} via mobile endpoint (using POST)`);
+    logStep(`Retrieving QC images for assembly ID: ${testAssemblyId}`);
 
-    // Use the same URL but change method to POST
     const retrieveUrl = `${API_URL}/mobile/assemblies/${testAssemblyId}/qc-images`;
 
-    // Use POST and send userId/cardId in the body, as expected by verifyNfcCard middleware
+    // Use POST and send userId/cardId in the body as expected by middleware
     const response = await fetch(retrieveUrl, {
-      method: 'POST', // Changed from GET to POST
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ // Added body with credentials
+      body: JSON.stringify({
         userId: userId,
         cardId: TEST_NFC_CARD
       })
@@ -143,38 +177,88 @@ const retrieveQCImage = async () => {
     }
 
     const data = await response.json();
-
-    // Check if the response contains the uploaded image ID
-    const images = data.data?.qc_images || data.data || data;
-
+    
+    // Parse the response based on expected structure
+    const images = data.data || [];
+    
     if (!Array.isArray(images)) {
-      throw new Error('Expected an array of images in the response');
+      throw new Error('Expected an array of images in the response, got: ' + JSON.stringify(data));
     }
 
-    const foundImage = images.find(img => img.id === uploadedQcImageId);
-
-    if (foundImage) {
-      logSuccess(`Successfully verified that uploaded QC image ID ${uploadedQcImageId} exists for assembly ${testAssemblyId}`);
-      return foundImage;
-    } else {
-      throw new Error(`Uploaded QC image ID ${uploadedQcImageId} not found in the list for assembly ${testAssemblyId}`);
+    logSuccess(`Retrieved ${images.length} QC images`);
+    
+    // Check if our uploaded image exists
+    if (uploadedQcImageId) {
+      const foundImage = images.find(img => img.id === uploadedQcImageId);
+      
+      if (foundImage) {
+        logSuccess(`Found our recently uploaded QC image (ID: ${uploadedQcImageId})`);
+        console.log('  Image notes:', foundImage.notes);
+        console.log('  Image QC status:', foundImage.qc_status);
+        return images;
+      } else {
+        logError(`Uploaded QC image ID ${uploadedQcImageId} not found in results.`);
+      }
     }
-
+    
+    return images;
   } catch (error) {
-    logError('Failed to retrieve or verify QC image', error);
+    logError('Failed to retrieve QC images', error);
     return null;
   }
 };
 
+// Step 5: Retrieve assembly details to verify QC notes are separate
+const verifyAssemblyQCNotes = async () => {
+  try {
+    logStep('Verifying assembly QC notes are separate from image notes');
+    
+    // Get assembly details - use POST method to include auth info in body, similar to QC images endpoint
+    const response = await fetch(`${API_URL}/mobile/assemblies/barcode/ASM-MA3WU7N4-ZT0GV?userId=d9e9f4c4-35a6-4fac-b961-8ac85f61b181`, {
+      method: 'GET', // Changed from GET to POST to include authentication in body
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+    }
+    
+    const data = await response.json();
+    const assembly = data.data;
+    
+    logSuccess('Retrieved assembly details');
+    console.log('  Assembly QC notes:', assembly.quality_control_notes || 'None');
+    console.log('  Assembly QC status:', assembly.quality_control_status || 'None');
+    
+    return assembly;
+  } catch (error) {
+    logError('Failed to verify assembly QC notes', error);
+    return null;
+  }
+};
 
 // Main function
 const runTests = async () => {
-  console.log('Starting Mobile QC API Test');
+  console.log('Starting Mobile QC API Test for Separate QC Notes');
   console.log(`API URL: ${API_URL}`);
+  console.log(`Testing with assembly ID: ${testAssemblyId}`);
   
+  // Step 1: Authenticate with NFC
   await authenticateWithNFC();
+  
+  // Step 2: Upload QC image with issue-specific notes
   await uploadQCImage();
-  await retrieveQCImage(); // Add the retrieve step here
+  
+  // Step 3: Update assembly overall QC notes
+  await updateAssemblyQCNotes();
+  
+  // Step 4: Retrieve QC images to verify they have separate notes
+  await retrieveQCImages();
+  
+  // Step 5: Verify assembly has its own QC notes that weren't affected by image upload
+  await verifyAssemblyQCNotes();
   
   console.log('\n=== Test completed ===');
 };

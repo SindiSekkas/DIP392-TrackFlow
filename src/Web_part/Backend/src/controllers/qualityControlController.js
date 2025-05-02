@@ -73,20 +73,8 @@ export const qualityControlController = {
         qcImageRecord = qcImage;
       }
       
-      // Update assembly QC status if provided
-      if (qcStatus) {
-        const { error: updateError } = await supabase
-          .from('assemblies')
-          .update({
-            quality_control_status: qcStatus,
-            quality_control_notes: notes || assembly.quality_control_notes
-          })
-          .eq('id', assemblyId);
-          
-        if (updateError) {
-          return next(ErrorTypes.SERVER_ERROR('Failed to update assembly QC status: ' + updateError.message));
-        }
-      }
+      // Important: We no longer update assembly QC status based on image upload
+      // This keeps the overall assembly QC notes separate from individual image notes
       
       // Log the quality control check
       await supabase
@@ -109,7 +97,72 @@ export const qualityControlController = {
           assembly_id: assemblyId,
           qc_status: qcStatus,
           qc_image: qcImageRecord,
-          message: 'Quality control data updated successfully'
+          message: 'QC image uploaded successfully'
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+  
+  // New method to update assembly QC notes and status
+  updateAssemblyQCNotes: async (req, res, next) => {
+    try {
+      const { assemblyId } = req.params;
+      const { qcStatus, notes } = req.body;
+      const userId = req.user.id;
+      
+      if (!assemblyId) {
+        return next(ErrorTypes.VALIDATION('Assembly ID is required'));
+      }
+      
+      // Verify assembly exists
+      const { data: assembly, error: assemblyError } = await supabase
+        .from('assemblies')
+        .select('id, status, quality_control_status, quality_control_notes')
+        .eq('id', assemblyId)
+        .single();
+      
+      if (assemblyError || !assembly) {
+        return next(ErrorTypes.NOT_FOUND('Assembly not found'));
+      }
+      
+      // Update assembly QC notes and status
+      const { data: updatedAssembly, error: updateError } = await supabase
+        .from('assemblies')
+        .update({
+          quality_control_status: qcStatus,
+          quality_control_notes: notes
+        })
+        .eq('id', assemblyId)
+        .select()
+        .single();
+        
+      if (updateError) {
+        return next(ErrorTypes.SERVER_ERROR('Failed to update QC notes: ' + updateError.message));
+      }
+      
+      // Log the quality control update
+      await supabase
+        .from('mobile_operations_log')
+        .insert({
+          operation_type: 'update_qc_notes',
+          user_id: userId,
+          request_details: {
+            assembly_id: assemblyId,
+            previous_qc_status: assembly.quality_control_status,
+            new_qc_status: qcStatus
+          },
+          assembly_id: assemblyId,
+          status_code: 200
+        });
+      
+      res.json({
+        data: {
+          assembly_id: assemblyId,
+          quality_control_status: updatedAssembly.quality_control_status,
+          quality_control_notes: updatedAssembly.quality_control_notes,
+          message: 'Quality control notes updated successfully'
         }
       });
     } catch (error) {

@@ -206,6 +206,20 @@ mobileRouter.post( // <-- Changed from GET to POST
   qualityControlController.getQCImages
 );
 
+// Update general QC notes for an assembly (mobile API)
+mobileRouter.post(
+  '/assemblies/:assemblyId/qc-notes',
+  mobileAuthenticate,
+  verifyNfcCard,
+  validate([
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID'),
+    body('qcStatus').optional().isString().withMessage('Invalid QC status'),
+    body('notes').optional().isString().withMessage('Invalid notes')
+  ]),
+  logMobileOperation('update_qc_notes'),
+  qualityControlController.updateAssemblyQCNotes
+);
+
 
 // Web API routes for barcode/status management
 // Get assembly by barcode (web app - no auth required for scanning via web)
@@ -264,6 +278,18 @@ router.delete(
   authorize(['admin', 'manager']),
   validate(qcImageValidationRules.deleteQCImage),
   qualityControlController.deleteQCImage
+);
+
+// Update general QC notes for an assembly (Web API)
+router.post(
+  '/assemblies/:assemblyId/qc-notes',
+  authenticate,
+  validate([
+    param('assemblyId').isUUID().withMessage('Invalid assembly ID'),
+    body('qcStatus').optional().isString().withMessage('Invalid QC status'),
+    body('notes').optional().isString().withMessage('Invalid notes')
+  ]),
+  qualityControlController.updateAssemblyQCNotes
 );
 
 router.post(
