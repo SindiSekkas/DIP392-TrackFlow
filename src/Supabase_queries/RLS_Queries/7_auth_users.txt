@@ -1,0 +1,7 @@
+-- RLS for auth_users (restrict access to everyone except service_role)
+ALTER TABLE auth_users ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "No direct access to auth_users"
+ON auth_users
+TO authenticated
+USING (false);

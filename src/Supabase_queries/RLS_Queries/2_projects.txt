@@ -1,0 +1,6 @@
+-- Projects - everyone can read (matching current behavior)
+ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "All authenticated users can view projects"
+ON projects FOR SELECT
+USING (auth.role() = 'authenticated');

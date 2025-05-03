@@ -1,0 +1,10 @@
+ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own preferences"
+ON user_preferences FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role bypass"
+ON user_preferences FOR ALL
+USING (auth.jwt()->>'role' = 'service_role');

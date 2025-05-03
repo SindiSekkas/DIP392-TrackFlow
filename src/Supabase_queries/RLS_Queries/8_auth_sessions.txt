@@ -1,0 +1,7 @@
+-- RLS for auth_sessions
+ALTER TABLE auth_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "No direct access to auth_sessions"
+ON auth_sessions
+TO authenticated
+USING (false);
