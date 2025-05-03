@@ -1,0 +1,40 @@
+-- Обновить политики RLS для таблицы projects
+
+-- 1. Сначала проверим существующие политики и удалим их, если они мешают
+DROP POLICY IF EXISTS "All authenticated users can view projects" ON projects;
+
+-- 2. Создать новую политику, разрешающую все операции для аутентифицированных пользователей
+CREATE POLICY "Authenticated users can manage projects"
+    ON projects
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- 3. Обновить политики для связанных таблиц, которые могут блокировать удаление проекта
+-- Обновим политики для таблицы assemblies
+DROP POLICY IF EXISTS "Authenticated users can view assemblies" ON assemblies;
+CREATE POLICY "Authenticated users can manage assemblies"
+    ON assemblies
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- 4. Обновим политики для таблицы project_drawings
+DROP POLICY IF EXISTS "All authenticated users can manage project drawings" ON project_drawings;
+CREATE POLICY "All authenticated users can manage project drawings"
+    ON project_drawings
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
+
+-- 5. Проверяем и обновляем политики для логистики, если эти таблицы блокируют удаление проекта
+DROP POLICY IF EXISTS "Authenticated users can view logistics batches" ON logistics_batches;
+CREATE POLICY "Authenticated users can manage logistics batches"
+    ON logistics_batches
+    FOR ALL
+    TO authenticated
+    USING (true)
+    WITH CHECK (true);
