@@ -1,0 +1,13 @@
+ALTER TABLE assembly_status_logs ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to view all status logs
+CREATE POLICY "Authenticated users can view status logs"
+    ON assembly_status_logs FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Allow authenticated users to insert status logs
+CREATE POLICY "Authenticated users can insert status logs"
+    ON assembly_status_logs FOR INSERT
+    TO authenticated
+    WITH CHECK (auth.uid() = updated_by);

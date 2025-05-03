@@ -1,0 +1,38 @@
+-- Enable RLS on shipping_companies
+ALTER TABLE shipping_companies ENABLE ROW LEVEL SECURITY;
+
+-- View: All authenticated users (needed for dropdowns and searching)
+CREATE POLICY "Authenticated users can view shipping companies"
+    ON shipping_companies FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create: All authenticated users (needed for on-the-fly creation in forms)
+CREATE POLICY "Authenticated users can create shipping companies"
+    ON shipping_companies FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: Admin and manager roles only
+CREATE POLICY "Only admins and managers can update shipping companies"
+    ON shipping_companies FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );
+
+-- Delete: Admin and manager roles only
+CREATE POLICY "Only admins and managers can delete shipping companies"
+    ON shipping_companies FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );

@@ -1,0 +1,26 @@
+-- Enable RLS on logistics_documents
+ALTER TABLE logistics_documents ENABLE ROW LEVEL SECURITY;
+
+-- View: All authenticated users
+CREATE POLICY "Authenticated users can view logistics documents"
+    ON logistics_documents FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create: All authenticated users
+CREATE POLICY "Authenticated users can upload logistics documents"
+    ON logistics_documents FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: All authenticated users (modified to remove role restriction)
+CREATE POLICY "All authenticated users can update logistics documents"
+    ON logistics_documents FOR UPDATE
+    TO authenticated
+    USING (true);
+
+-- Delete: All authenticated users (modified to remove role restriction)
+CREATE POLICY "All authenticated users can delete logistics documents"
+    ON logistics_documents FOR DELETE
+    TO authenticated
+    USING (true);

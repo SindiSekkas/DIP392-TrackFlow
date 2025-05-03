@@ -1,0 +1,9 @@
+-- Enable RLS for project_drawings
+ALTER TABLE public.project_drawings ENABLE ROW LEVEL SECURITY;
+
+-- Create policy for all operations for all authenticated users
+CREATE POLICY "All authenticated users can manage project drawings"
+    ON public.project_drawings
+    FOR ALL
+    USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');

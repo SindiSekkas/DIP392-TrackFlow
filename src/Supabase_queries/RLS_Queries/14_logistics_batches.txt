@@ -1,0 +1,32 @@
+-- Enable RLS on logistics_batches
+ALTER TABLE logistics_batches ENABLE ROW LEVEL SECURITY;
+
+-- View: All authenticated users
+CREATE POLICY "Authenticated users can view logistics batches"
+    ON logistics_batches FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create: All authenticated users
+CREATE POLICY "Authenticated users can create logistics batches"
+    ON logistics_batches FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: All authenticated users
+CREATE POLICY "Authenticated users can update logistics batches"
+    ON logistics_batches FOR UPDATE
+    TO authenticated
+    USING (true);
+
+-- Delete: Admin and manager roles only
+CREATE POLICY "Only admins and managers can delete logistics batches"
+    ON logistics_batches FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );

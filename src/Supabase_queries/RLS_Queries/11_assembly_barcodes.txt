@@ -1,0 +1,27 @@
+-- Enable RLS for assembly_barcodes
+ALTER TABLE assembly_barcodes ENABLE ROW LEVEL SECURITY;
+
+-- Policies for assembly_barcodes
+-- Allow everyone to view barcodes (needed for scanning without authentication)
+CREATE POLICY "Anyone can view barcodes"
+    ON assembly_barcodes FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+-- Allow authenticated users to create barcodes
+CREATE POLICY "Authenticated users can create barcodes"
+    ON assembly_barcodes FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Allow authenticated users to update barcodes
+CREATE POLICY "Authenticated users can update barcodes"
+    ON assembly_barcodes FOR UPDATE
+    TO authenticated
+    USING (true);
+
+-- Allow authenticated users to delete barcodes
+CREATE POLICY "Authenticated users can delete barcodes"
+    ON assembly_barcodes FOR DELETE
+    TO authenticated
+    USING (true);

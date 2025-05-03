@@ -1,0 +1,26 @@
+-- Enable RLS on assembly_qc_images
+ALTER TABLE assembly_qc_images ENABLE ROW LEVEL SECURITY;
+
+-- View: All authenticated users
+CREATE POLICY "Authenticated users can view assembly_qc_images"
+    ON assembly_qc_images FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create: All authenticated users
+CREATE POLICY "Authenticated users can create assembly_qc_images"
+    ON assembly_qc_images FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: All authenticated users
+CREATE POLICY "Authenticated users can update assembly_qc_images"
+    ON assembly_qc_images FOR UPDATE
+    TO authenticated
+    USING (true);
+
+-- Delete: All authenticated users
+CREATE POLICY "Authenticated users can delete assembly_qc_images"
+    ON assembly_qc_images FOR DELETE
+    TO authenticated
+    USING (true);

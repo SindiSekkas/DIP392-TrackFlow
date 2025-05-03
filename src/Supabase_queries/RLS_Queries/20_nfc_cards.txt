@@ -1,0 +1,44 @@
+-- Enable RLS on nfc_cards
+ALTER TABLE nfc_cards ENABLE ROW LEVEL SECURITY;
+
+-- View: Public access (needed for NFC validation without authentication)
+CREATE POLICY "Anyone can view NFC cards"
+    ON nfc_cards FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+-- Create: Admin and manager roles only
+CREATE POLICY "Only admins and managers can create NFC cards"
+    ON nfc_cards FOR INSERT
+    TO authenticated
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );
+
+-- Update: Admin and manager roles only
+CREATE POLICY "Only admins and managers can update NFC cards"
+    ON nfc_cards FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );
+
+-- Delete: Admin and manager roles only
+CREATE POLICY "Only admins and managers can delete NFC cards"
+    ON nfc_cards FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );

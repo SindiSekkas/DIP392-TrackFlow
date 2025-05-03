@@ -1,0 +1,38 @@
+-- Enable RLS on logistics_batch_barcodes
+ALTER TABLE logistics_batch_barcodes ENABLE ROW LEVEL SECURITY;
+
+-- View: Public access (for mobile barcode validation)
+CREATE POLICY "Anyone can view batch barcodes"
+    ON logistics_batch_barcodes FOR SELECT
+    TO anon, authenticated
+    USING (true);
+
+-- Create: All authenticated users
+CREATE POLICY "Authenticated users can create batch barcodes"
+    ON logistics_batch_barcodes FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: Admin and manager roles only
+CREATE POLICY "Only admins and managers can update batch barcodes"
+    ON logistics_batch_barcodes FOR UPDATE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );
+
+-- Delete: Admin and manager roles only
+CREATE POLICY "Only admins and managers can delete batch barcodes"
+    ON logistics_batch_barcodes FOR DELETE
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM user_profiles
+            WHERE auth_user_id = auth.uid()
+            AND role IN ('admin', 'manager')
+        )
+    );

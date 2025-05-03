@@ -1,0 +1,26 @@
+-- Enable RLS on logistics_batch_assemblies
+ALTER TABLE logistics_batch_assemblies ENABLE ROW LEVEL SECURITY;
+
+-- View: All authenticated users
+CREATE POLICY "Authenticated users can view batch assemblies"
+    ON logistics_batch_assemblies FOR SELECT
+    TO authenticated
+    USING (true);
+
+-- Create: All authenticated users (needed for mobile operations)
+CREATE POLICY "Authenticated users can add assemblies to batches"
+    ON logistics_batch_assemblies FOR INSERT
+    TO authenticated
+    WITH CHECK (true);
+
+-- Update: All authenticated users
+CREATE POLICY "Authenticated users can update batch assemblies"
+    ON logistics_batch_assemblies FOR UPDATE
+    TO authenticated
+    USING (true);
+
+-- Delete: All authenticated users (needed for removing assemblies)
+CREATE POLICY "Authenticated users can remove assemblies from batches"
+    ON logistics_batch_assemblies FOR DELETE
+    TO authenticated
+    USING (true);
