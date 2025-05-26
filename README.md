@@ -22,9 +22,9 @@ Check our [Component Development Guide](Collaboration.md) to start contributing
 * **Authentication & Database**: Supabase (PostgreSQL based)
 * **Security**: Supabase Auth with JWT, Express Validator, Helmet
 * **Styling**: Tailwind CSS
+* **Mobile**: Kotlin Compose (Android Studio)
 
-### Planned:
-* **Mobile**: Java (Android Studio)
+
 
 Above mentioned methods are just initial and more details/changes will be added as the project progresses.
 
